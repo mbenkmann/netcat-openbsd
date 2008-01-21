@@ -1,0 +1,14 @@
+Index: netcat-1.84/netcat.c
+===================================================================
+--- netcat-1.84.orig/netcat.c	2008-01-15 10:10:22.373351813 +0100
++++ netcat-1.84/netcat.c	2008-01-15 10:10:24.840730278 +0100
+@@ -799,6 +799,9 @@
+ 			hi = lo;
+ 			lo = cp;
+ 		}
++		else if (pfd[0].revents & POLLERR)
++			if (write(nfd, "", 1) == -1)
++			    warn("Write error");
+ 
+ 		/* Load ports sequentially. */
+ 		for (cp = lo; cp <= hi; cp++) {

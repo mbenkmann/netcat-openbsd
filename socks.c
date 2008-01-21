@@ -53,6 +53,8 @@
 #define SOCKS_DOMAIN	3
 #define SOCKS_IPV6	4
 
+extern int b64_ntop(unsigned char const *, size_t, char *, size_t);
+
 int	remote_connect(const char *, const char *, struct addrinfo);
 int	socks_connect(const char *, const char *, struct addrinfo,
 	    const char *, const char *, struct addrinfo, int,

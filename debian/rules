@@ -1,0 +1,64 @@
+#!/usr/bin/make -f
+#export DH_VERBOSE=1
+
+DEB_CFLAGS = -g -Wall
+ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
+DEB_CFLAGS += -O0
+else
+DEB_CFLAGS += -O2
+endif
+ifneq (,$(findstring nostrip,$(DEB_BUILD_OPTIONS)))
+INSTALL_PROG = install -m 0755
+else
+INSTALL_PROG = install -s -m 0755
+endif
+DEB_VER = $(shell dpkg-parsechangelog | sed -n 's/^Version: //p')
+
+patch: patch-stamp
+patch-stamp:
+	QUILT_PATCHES=debian/patches quilt push -a || test $$? = 2
+	touch patch-stamp
+
+unpatch:
+	QUILT_PATCHES=debian/patches quilt pop -a -R || test $$? = 2
+	rm -rf .pc patch-stamp
+
+build: build-stamp
+build-stamp: patch-stamp
+
+	$(MAKE) CFLAGS='$(DEB_CFLAGS) -DDEBIAN_VERSION=\"$(DEB_VER)\"'
+	touch build-stamp
+
+clean: unpatch
+	dh_testdir
+	dh_clean patch-stamp build-stamp
+	$(MAKE) clean
+
+install:
+	dh_testdir
+	dh_testroot
+	dh_clean -k
+	dh_installdirs
+
+	$(INSTALL_PROG) nc $(CURDIR)/debian/netcat-openbsd/bin/nc.openbsd
+	cp nc.1 $(CURDIR)/debian/netcat-openbsd/usr/share/man/man1/nc_openbsd.1
+
+binary-indep: build install
+
+binary-arch: build install
+	dh_testdir
+	dh_testroot
+	dh_installchangelogs
+	dh_installdocs
+	dh_installexamples debian/examples/*
+	dh_link
+	dh_strip
+	dh_compress -Xexamples
+	dh_fixperms
+	dh_installdeb
+	dh_shlibdeps
+	dh_gencontrol
+	dh_md5sums
+	dh_builddeb
+
+binary: binary-indep binary-arch
