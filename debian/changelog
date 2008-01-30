@@ -1,3 +1,10 @@
+netcat-openbsd (1.89-2) unstable; urgency=low
+
+  * Replace references to "netcat-base" with "netcat-traditional" (future
+    name of the old netcat package).
+
+ -- Decklin Foster <decklin@red-bean.com>  Wed, 30 Jan 2008 18:24:46 -0500
+
 netcat-openbsd (1.89-1) unstable; urgency=low
 
   * Initial release. (Closes: #145798)
@@ -5,9 +12,9 @@ netcat-openbsd (1.89-1) unstable; urgency=low
     - IPv6 (Closes: #461317)
     - Unix domain sockets (Closes: #348564)
     - SOCKS (Closes: #142898)
-  * Conflict with netcat versions older than netcat-base, so that we can use
-    alternatives.
-  * Port some features over from netcat-base:
+  * Conflict with netcat versions older than netcat-traditional, so that we
+    can use alternatives.
+  * Port some features over from netcat-traditional:
     - Exit successfully when printing help text (-h), and include the Debian
       revision.
     - Add the -q (quit on standard input EOF) flag.

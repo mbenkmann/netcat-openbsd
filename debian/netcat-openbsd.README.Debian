@@ -7,8 +7,8 @@ added.
 
  -- Soren Hansen <soren@ubuntu.com>  Tue, 15 Jan 2008 10:38:34 +0100
 
-The OpenBSD implementation has been split from netcat-base for two
-reasons (not counting sentimental value):
+The OpenBSD implementation has been split from netcat-traditional for
+two reasons (not counting sentimental value):
 
  1. Netcat should be part of the base system; OpenBSD netcat uses
     strlcpy. While there is already a perfectly good implementation of
@@ -17,23 +17,25 @@ reasons (not counting sentimental value):
     package will be provided for lenny so that users can note the new
     package and switch if they wish.
 
-You may install this package alongside netcat-base; they both use the
-alternatives system for nc(1) as well as the deprecated alias netcat(1).
-Other implementations of netcat with compatible command line options are
-encouraged to also do so and provide the virtual package "netcat".
+You may install this package alongside netcat-traditional; they both
+use the alternatives system for nc(1) as well as the deprecated alias
+netcat(1). Other implementations of netcat with compatible command line
+options are encouraged to also do so and provide the virtual package
+"netcat".
 
-The following features from netcat-base will not be added to this package:
+The following features from netcat-traditional will not be added to this
+package:
 
-  * The -e and -c options (This should be done by redirecting the appropriate
-    file descriptors, not within netcat. How to do so should be better
-    documented.)
-  * Printing "connection refused" messages when -v is not specified (because
-    there is only one level of verbosity in this netcat, and that message is
-    primarily what the option is for.)
+  * The -e and -c options (This should be done by redirecting the
+    appropriate file descriptors, not within netcat. How to do so should
+    be better documented.)
+  * Printing "connection refused" messages when -v is not specified
+    (because there is only one level of verbosity in this netcat, and
+    that message is primarily what the option is for.)
 
-Anything else that netcat-base does that this package doesn't is a
-bug. Wherever possible, command-line compatibility with the BSDs and
-Fedora is desired, but it should be easy to use netcat-openbsd as a
-"drop-in" replacement for netcat-base as well.
+Anything else that netcat-traditional does that this package doesn't
+is a bug. Wherever possible, command-line compatibility with the BSDs
+and Fedora is desired, but it should be easy to use netcat-openbsd as a
+"drop-in" replacement for netcat-traditional as well.
 
  -- Decklin Foster <decklin@red-bean.com>  Tue, 22 Jan 2008 18:50:08 -0500
