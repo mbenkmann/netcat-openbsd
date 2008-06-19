@@ -15,8 +15,8 @@ Index: netcat-openbsd-1.89/netcat.c
  				continue;
  
  			ret = 0;
--			if (vflag || zflag) {
-+			if ((vflag && !uflag) || zflag) {
+-			if (vflag) {
++			if (vflag && !uflag) {
  				/* For UDP, make sure we are connected. */
  				if (uflag) {
  					if (udptest(s) == -1) {

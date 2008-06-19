@@ -1,3 +1,12 @@
+netcat-openbsd (1.89-3) unstable; urgency=low
+
+  * Silence -z flag, for compatibility with netcat-traditional (Closes:
+    #464564)
+  * Move stray line in socks.c to quilt patch series (Closes: #485160)
+  * Add missing documentation for -q option to man page.
+
+ -- Decklin Foster <decklin@red-bean.com>  Thu, 19 Jun 2008 16:20:01 -0400
+
 netcat-openbsd (1.89-2) unstable; urgency=low
 
   * Replace references to "netcat-base" with "netcat-traditional" (future

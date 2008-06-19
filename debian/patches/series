@@ -1,4 +1,6 @@
 openbsd-compat.patch
+socks-b64-prototype.patch
+silence-z.patch
 glib-strlcpy.patch
 no-strtonum.patch
 pollhup.patch
