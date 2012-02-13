@@ -1,8 +1,9 @@
 netcat-openbsd (1.105-1) UNRELEASED; urgency=low
 
   * New upstream CVS snapshot, new maintainer.
-    - Verbose message to stdout (Closes: #570765)
-    - can use packet's content > 1024 (Closes: #607003)
+    - Verbose message to stdout (Closes: #570765).
+    - Can use packet's content > 1024 (Closes: #607003).
+    - Replace non-portable echo with printf (Closes: #510372).
   * debian/patches:
     - Rearrange existing patches, fix new porting issues.
     - Use libbsd instead of glib for strlcpy (Closes: #550611).
