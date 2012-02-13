@@ -6,8 +6,6 @@ Subject: [PATCH] verbose numeric port
  netcat.c |   22 ++++++++++++++++++----
  1 files changed, 18 insertions(+), 4 deletions(-)
 
-diff --git a/netcat.c b/netcat.c
-index bbebf12..a8f37ef 100644
 --- a/netcat.c
 +++ b/netcat.c
 @@ -41,6 +41,7 @@
@@ -18,7 +16,7 @@ index bbebf12..a8f37ef 100644
  # ifndef IPTOS_DSCP_AF11
  # define	IPTOS_DSCP_AF11		0x28
  # define	IPTOS_DSCP_AF12		0x30
-@@ -411,16 +412,15 @@ main(int argc, char *argv[])
+@@ -411,16 +412,15 @@
  			if (uflag) {
  				int rv, plen;
  				char buf[16384];
@@ -38,7 +36,7 @@ index bbebf12..a8f37ef 100644
  				if (rv < 0)
  					err(1, "connect");
  
-@@ -429,6 +429,20 @@ main(int argc, char *argv[])
+@@ -429,6 +429,21 @@
  				len = sizeof(cliaddr);
  				connfd = accept(s, (struct sockaddr *)&cliaddr,
  				    &len);
@@ -50,8 +48,9 @@ index bbebf12..a8f37ef 100644
 +						sv = getservbyport(ntohs(atoi(uport)),
 +							uflag ? "udp" : "tcp");
 +
++					char buf[150];
 +					fprintf(stderr, "Connection from %s port %s [%s/%s] accepted\n",
-+						inet_ntoa(((struct sockaddr_in *)(&cliaddr))->sin_addr),
++						inet_ntop(family,&((struct sockaddr_in *)(&cliaddr))->sin_addr,buf,150),
 +						uport,
 +						uflag ? "udp" : "tcp",
 +						sv ? sv->s_name : "*");
@@ -59,4 +58,3 @@ index bbebf12..a8f37ef 100644
  				readwrite(connfd);
  				close(connfd);
  			}
--- 
