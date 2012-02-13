@@ -42,6 +42,7 @@ install:
 
 	$(INSTALL_PROG) nc $(CURDIR)/debian/netcat-openbsd/bin/nc.openbsd
 	cp nc.1 $(CURDIR)/debian/netcat-openbsd/usr/share/man/man1/nc_openbsd.1
+	ln -sf nc_openbsd.1 $(CURDIR)/debian/netcat-openbsd/usr/share/man/man1/nc.openbsd.1
 
 binary-indep: build install
 
