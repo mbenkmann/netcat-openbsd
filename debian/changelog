@@ -1,3 +1,27 @@
+netcat-openbsd (1.105-1) UNRELEASED; urgency=low
+
+  * New upstream CVS snapshot, new maintainer.
+    - Verbose message to stdout (Closes: #570765)
+    - can use packet's content > 1024 (Closes: #607003)
+  * debian/patches:
+    - Rearrange existing patches, fix new porting issues.
+    - Use libbsd instead of glib for strlcpy (Closes: #550611).
+    - Fix build with -Wl,--as-needed (Closes: #604781).
+    - Replace inet_ntoa with inet_ntop to support IPv6
+      (Closes: #512992).
+    - Fix misc connection failures, thanks Ian Jackson
+      (Closes: #579485, #579487, #579488).
+  * debian/rules:
+    - Link nc.openbsd.1 from nc.1 (Closes: #535951).
+    - Enable optional hardening build flags.
+  * debian/control:
+    - Replace glib with libbsd.
+    - Update to use debhelper 8, std-ver 3.9.2.
+  * debian/compat:
+    - Update to 8 from 4.
+
+ -- Aron Xu <aron@debian.org>  Mon, 13 Feb 2012 19:52:02 +0800
+
 netcat-openbsd (1.89-4) unstable; urgency=low
 
   * Quit immediately after EOF if -q is not given (i.e. make the default
