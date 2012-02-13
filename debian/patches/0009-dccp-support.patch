@@ -6,9 +6,11 @@ Subject: [PATCH] dccp support
  netcat.c |   82 ++++++++++++++++++++++++++++++++++++++++++++++++++++----------
  1 files changed, 69 insertions(+), 13 deletions(-)
 
+diff --git a/netcat.c b/netcat.c
+index d71a8b6..40f7129 100644
 --- a/netcat.c
 +++ b/netcat.c
-@@ -118,6 +118,7 @@
+@@ -118,6 +118,7 @@ int	rflag;					/* Random ports flag */
  char   *sflag;					/* Source Address */
  int	tflag;					/* Telnet Emulation */
  int	uflag;					/* UDP - Default to TCP */
@@ -16,7 +18,7 @@ Subject: [PATCH] dccp support
  int	vflag;					/* Verbosity */
  int	xflag;					/* Socks proxy */
  int	zflag;					/* Port Scan Flag */
-@@ -149,6 +150,7 @@
+@@ -149,6 +150,7 @@ int	unix_listen(char *);
  void	set_common_sockopts(int);
  int	map_tos(char *, int *);
  void	usage(int);
@@ -24,7 +26,7 @@ Subject: [PATCH] dccp support
  
  static int connect_with_timeout(int fd, const struct sockaddr *sa,
          socklen_t salen, int ctimeout);
-@@ -176,7 +178,7 @@
+@@ -176,7 +178,7 @@ main(int argc, char *argv[])
  	sv = NULL;
  
  	while ((ch = getopt(argc, argv,
@@ -33,7 +35,7 @@ Subject: [PATCH] dccp support
  		switch (ch) {
  		case '4':
  			family = AF_INET;
-@@ -245,6 +247,9 @@
+@@ -245,6 +247,9 @@ main(int argc, char *argv[])
  		case 'u':
  			uflag = 1;
  			break;
@@ -43,7 +45,7 @@ Subject: [PATCH] dccp support
  # if defined(RT_TABLEID_MAX)
  		case 'V':
  			rtableid = (unsigned int)strtonum(optarg, 0,
-@@ -314,6 +319,10 @@
+@@ -314,6 +319,10 @@ main(int argc, char *argv[])
  
  	/* Cruft to make sure options are clean, and used properly. */
  	if (argv[0] && !argv[1] && family == AF_UNIX) {
@@ -54,7 +56,7 @@ Subject: [PATCH] dccp support
  		host = argv[0];
  		uport = NULL;
  	} else if (argv[0] && !argv[1]) {
-@@ -353,8 +362,18 @@
+@@ -353,8 +362,18 @@ main(int argc, char *argv[])
  	if (family != AF_UNIX) {
  		memset(&hints, 0, sizeof(struct addrinfo));
  		hints.ai_family = family;
@@ -75,7 +77,7 @@ Subject: [PATCH] dccp support
  		if (nflag)
  			hints.ai_flags |= AI_NUMERICHOST;
  	}
-@@ -363,6 +382,9 @@
+@@ -363,6 +382,9 @@ main(int argc, char *argv[])
  		if (uflag)
  			errx(1, "no proxy support for UDP mode");
  
@@ -85,7 +87,7 @@ Subject: [PATCH] dccp support
  		if (lflag)
  			errx(1, "no proxy support for listen");
  
-@@ -430,18 +452,19 @@
+@@ -430,18 +452,19 @@ main(int argc, char *argv[])
  				connfd = accept(s, (struct sockaddr *)&cliaddr,
  				    &len);
  				if(vflag) {
@@ -107,7 +109,7 @@ Subject: [PATCH] dccp support
  						sv ? sv->s_name : "*");
  				}
  				readwrite(connfd);
-@@ -614,6 +637,22 @@
+@@ -614,6 +637,22 @@ unix_listen(char *path)
  	return (s);
  }
  
@@ -130,7 +132,7 @@ Subject: [PATCH] dccp support
  /*
   * remote_connect()
   * Returns a socket connected to a remote host. Properly binds to a local
-@@ -652,8 +691,19 @@
+@@ -652,8 +691,19 @@ remote_connect(const char *host, const char *port, struct addrinfo hints)
  # endif
  			memset(&ahints, 0, sizeof(struct addrinfo));
  			ahints.ai_family = res0->ai_family;
@@ -152,7 +154,7 @@ Subject: [PATCH] dccp support
  			ahints.ai_flags = AI_PASSIVE;
  			if ((error = getaddrinfo(sflag, pflag, &ahints, &ares)))
  				errx(1, "getaddrinfo: %s", gai_strerror(error));
-@@ -665,15 +715,19 @@
+@@ -665,15 +715,19 @@ remote_connect(const char *host, const char *port, struct addrinfo hints)
  		}
  
  		set_common_sockopts(s);
@@ -177,7 +179,7 @@ Subject: [PATCH] dccp support
  
  		close(s);
  		s = -1;
-@@ -987,7 +1041,8 @@
+@@ -987,7 +1041,8 @@ build_ports(char *p)
  	int hi, lo, cp;
  	int x = 0;
  
@@ -187,7 +189,7 @@ Subject: [PATCH] dccp support
          if (sv) {
                  portlist[0] = calloc(1, PORT_MAX_LEN);
                  if (portlist[0] == NULL)
-@@ -1181,6 +1236,7 @@
+@@ -1181,6 +1236,7 @@ help(void)
  	\t-t		Answer TELNET negotiation\n\
  	\t-U		Use UNIX domain socket\n\
  	\t-u		UDP mode\n\
@@ -195,3 +197,4 @@ Subject: [PATCH] dccp support
  	\t-V rtable	Specify alternate routing table\n\
  	\t-v		Verbose\n\
  	\t-w secs\t	Timeout for connects and final net reads\n\
+-- 

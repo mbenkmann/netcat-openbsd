@@ -6,6 +6,8 @@ Subject: [PATCH] quit timer
  netcat.c |   29 +++++++++++++++++++++++++++--
  1 files changed, 27 insertions(+), 2 deletions(-)
 
+diff --git a/netcat.c b/netcat.c
+index 1ad4903..29af388 100644
 --- a/netcat.c
 +++ b/netcat.c
 @@ -75,6 +75,7 @@
@@ -16,7 +18,7 @@ Subject: [PATCH] quit timer
  #include <stdarg.h>
  #include <stdio.h>
  #include <stdlib.h>
-@@ -109,6 +110,7 @@
+@@ -109,6 +110,7 @@ int	lflag;					/* Bind to local port */
  int	nflag;					/* Don't do name look up */
  char   *Pflag;					/* Proxy username */
  char   *pflag;					/* Localport flag */
@@ -24,7 +26,7 @@ Subject: [PATCH] quit timer
  int	rflag;					/* Random ports flag */
  char   *sflag;					/* Source Address */
  int	tflag;					/* Telnet Emulation */
-@@ -147,6 +149,7 @@
+@@ -147,6 +149,7 @@ void	usage(int);
  
  static int connect_with_timeout(int fd, const struct sockaddr *sa,
          socklen_t salen, int ctimeout);
@@ -32,7 +34,7 @@ Subject: [PATCH] quit timer
  
  int
  main(int argc, char *argv[])
-@@ -170,7 +173,7 @@
+@@ -170,7 +173,7 @@ main(int argc, char *argv[])
  	sv = NULL;
  
  	while ((ch = getopt(argc, argv,
@@ -41,7 +43,7 @@ Subject: [PATCH] quit timer
  		switch (ch) {
  		case '4':
  			family = AF_INET;
-@@ -222,6 +225,11 @@
+@@ -222,6 +225,11 @@ main(int argc, char *argv[])
  		case 'p':
  			pflag = optarg;
  			break;
@@ -53,7 +55,7 @@ Subject: [PATCH] quit timer
  		case 'r':
  			rflag = 1;
  			break;
-@@ -903,7 +911,13 @@
+@@ -903,7 +911,13 @@ readwrite(int nfd)
  			}
  			else if (pfd[1].revents & POLLHUP) {
  			shutdown_wr:
@@ -68,7 +70,7 @@ Subject: [PATCH] quit timer
  				pfd[1].fd = -1;
  				pfd[1].events = 0;
  			}
-@@ -1137,6 +1151,7 @@
+@@ -1137,6 +1151,7 @@ help(void)
  	\t-O length	TCP send buffer length\n\
  	\t-P proxyuser\tUsername for proxy authentication\n\
  	\t-p port\t	Specify local port for remote connects\n\
@@ -76,7 +78,7 @@ Subject: [PATCH] quit timer
  	\t-r		Randomize remote ports\n\
  	\t-S		Enable the TCP MD5 signature option\n\
  	\t-s addr\t	Local source address\n\
-@@ -1165,3 +1180,13 @@
+@@ -1165,3 +1180,13 @@ usage(int ret)
  	if (ret)
  		exit(1);
  }
@@ -90,3 +92,4 @@ Subject: [PATCH] quit timer
 +        /* XXX: should explicitly close fds here */
 +        exit(0);
 +}
+-- 

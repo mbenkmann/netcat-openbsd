@@ -8,3 +8,4 @@
 0008-verbose-numeric-port.patch
 0009-dccp-support.patch
 0010-help-version-exit.patch
+0011-misc-connection-failures.patch

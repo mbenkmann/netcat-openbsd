@@ -4,9 +4,11 @@ Subject: [PATCH] send crlf
 
 ---
  nc.1     |   10 ++++++++--
- netcat.c |   19 ++++++++++++++++---
- 2 files changed, 24 insertions(+), 5 deletions(-)
+ netcat.c |   16 ++++++++++++++--
+ 2 files changed, 22 insertions(+), 4 deletions(-)
 
+diff --git a/nc.1 b/nc.1
+index 75d1437..6cf603b 100644
 --- a/nc.1
 +++ b/nc.1
 @@ -34,7 +34,7 @@
@@ -18,7 +20,7 @@ Subject: [PATCH] send crlf
  .Op Fl I Ar length
  .Op Fl i Ar interval
  .Op Fl O Ar length
-@@ -149,6 +149,10 @@
+@@ -149,6 +149,10 @@ should use, subject to privilege restrictions and availability.
  It is an error to use this option in conjunction with the
  .Fl l
  option.
@@ -29,7 +31,7 @@ Subject: [PATCH] send crlf
  .It Fl r
  Specifies that source and/or destination ports should be chosen randomly
  instead of sequentially within a range or in the order that the system
-@@ -179,6 +183,8 @@
+@@ -179,6 +183,8 @@ or one of the DiffServ Code Points:
  .Ar af11 ... af43 ,
  .Ar cs0 ... cs7 ;
  or a number in either hex or decimal.
@@ -38,7 +40,7 @@ Subject: [PATCH] send crlf
  .It Fl t
  Causes
  .Nm
-@@ -357,7 +363,7 @@
+@@ -357,7 +363,7 @@ More complicated examples can be built up when the user knows the format
  of requests required by the server.
  As another example, an email may be submitted to an SMTP server using:
  .Bd -literal -offset indent
@@ -47,6 +49,8 @@ Subject: [PATCH] send crlf
  HELO host.example.com
  MAIL FROM:\*(Ltuser@host.example.com\*(Gt
  RCPT TO:\*(Ltuser2@host.example.com\*(Gt
+diff --git a/netcat.c b/netcat.c
+index f438c23..1ad4903 100644
 --- a/netcat.c
 +++ b/netcat.c
 @@ -100,6 +100,7 @@
@@ -57,7 +61,7 @@ Subject: [PATCH] send crlf
  int	dflag;					/* detached, no stdin */
  unsigned int iflag;				/* Interval Flag */
  int	jflag;					/* use jumbo frames if we can */
-@@ -290,6 +291,9 @@
+@@ -290,6 +291,9 @@ main(int argc, char *argv[])
  			if (Tflag < 0 || Tflag > 255 || errstr || errno)
  				errx(1, "illegal tos value %s", optarg);
  			break;
@@ -67,7 +71,7 @@ Subject: [PATCH] send crlf
  		default:
  			usage(1);
  		}
-@@ -885,8 +889,16 @@
+@@ -885,8 +889,16 @@ readwrite(int nfd)
  			else if (n == 0) {
  				goto shutdown_wr;
  			} else {
@@ -86,3 +90,4 @@ Subject: [PATCH] send crlf
  			}
  			}
  			else if (pfd[1].revents & POLLHUP) {
+-- 

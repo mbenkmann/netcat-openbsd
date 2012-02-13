@@ -8,7 +8,6 @@ Subject: [PATCH] port to linux with libsd
  socks.c  |   48 ++++++++++++++++++++++++++----------------------
  3 files changed, 89 insertions(+), 33 deletions(-)
 
-
 diff --git a/Makefile b/Makefile
 index c4d37f1..6a9161c 100644
 --- a/Makefile

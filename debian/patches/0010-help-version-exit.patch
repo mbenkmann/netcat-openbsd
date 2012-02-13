@@ -3,12 +3,14 @@ Date: Mon, 13 Feb 2012 16:09:45 +0800
 Subject: [PATCH] help version exit
 
 ---
- netcat.c |    3 ++-
- 1 files changed, 2 insertions(+), 1 deletions(-)
+ netcat.c |    5 ++++-
+ 1 files changed, 4 insertions(+), 1 deletions(-)
 
+diff --git a/netcat.c b/netcat.c
+index 40f7129..1b47cc0 100644
 --- a/netcat.c
 +++ b/netcat.c
-@@ -1213,6 +1213,9 @@
+@@ -1213,6 +1213,9 @@ map_tos(char *s, int *val)
  void
  help(void)
  {
@@ -18,7 +20,7 @@ Subject: [PATCH] help version exit
  	usage(0);
  	fprintf(stderr, "\tCommand Summary:\n\
  	\t-4		Use IPv4\n\
-@@ -1244,7 +1247,7 @@
+@@ -1244,7 +1247,7 @@ help(void)
  	\t-x addr[:port]\tSpecify proxy address and port\n\
  	\t-z		Zero-I/O mode [used for scanning]\n\
  	Port numbers can be individual or ranges: lo-hi [inclusive]\n");
@@ -27,3 +29,4 @@ Subject: [PATCH] help version exit
  }
  
  void
+-- 
