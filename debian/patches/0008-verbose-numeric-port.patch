@@ -1,0 +1,62 @@
+From: Aron Xu <aron@debian.org>
+Date: Mon, 13 Feb 2012 15:38:15 +0800
+Subject: [PATCH] verbose numeric port
+
+---
+ netcat.c |   22 ++++++++++++++++++----
+ 1 files changed, 18 insertions(+), 4 deletions(-)
+
+diff --git a/netcat.c b/netcat.c
+index bbebf12..a8f37ef 100644
+--- a/netcat.c
++++ b/netcat.c
+@@ -41,6 +41,7 @@
+ #include <netinet/tcp.h>
+ #include <netinet/ip.h>
+ #include <arpa/telnet.h>
++#include <arpa/inet.h>
+ # ifndef IPTOS_DSCP_AF11
+ # define	IPTOS_DSCP_AF11		0x28
+ # define	IPTOS_DSCP_AF12		0x30
+@@ -411,16 +412,15 @@ main(int argc, char *argv[])
+ 			if (uflag) {
+ 				int rv, plen;
+ 				char buf[16384];
+-				struct sockaddr_storage z;
+ 
+-				len = sizeof(z);
++				len = sizeof(cliaddr);
+ 				plen = jflag ? 16384 : 2048;
+ 				rv = recvfrom(s, buf, plen, MSG_PEEK,
+-				    (struct sockaddr *)&z, &len);
++				    (struct sockaddr *)&cliaddr, &len);
+ 				if (rv < 0)
+ 					err(1, "recvfrom");
+ 
+-				rv = connect(s, (struct sockaddr *)&z, len);
++				rv = connect(s, (struct sockaddr *)&cliaddr, len);
+ 				if (rv < 0)
+ 					err(1, "connect");
+ 
+@@ -429,6 +429,20 @@ main(int argc, char *argv[])
+ 				len = sizeof(cliaddr);
+ 				connfd = accept(s, (struct sockaddr *)&cliaddr,
+ 				    &len);
++				if(vflag) {
++				/* Don't look up port if -n. */
++					if (nflag)
++						sv = NULL;
++					else
++						sv = getservbyport(ntohs(atoi(uport)),
++							uflag ? "udp" : "tcp");
++
++					fprintf(stderr, "Connection from %s port %s [%s/%s] accepted\n",
++						inet_ntoa(((struct sockaddr_in *)(&cliaddr))->sin_addr),
++						uport,
++						uflag ? "udp" : "tcp",
++						sv ? sv->s_name : "*");
++				}
+ 				readwrite(connfd);
+ 				close(connfd);
+ 			}
+-- 

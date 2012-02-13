@@ -1,0 +1,30 @@
+From: Aron Xu <aron@debian.org>
+Date: Mon, 13 Feb 2012 16:09:45 +0800
+Subject: [PATCH] help version exit
+
+---
+ netcat.c |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
+
+diff --git a/netcat.c b/netcat.c
+index 808d39d..a3f7a4d 100644
+--- a/netcat.c
++++ b/netcat.c
+@@ -1212,6 +1212,7 @@ map_tos(char *s, int *val)
+ void
+ help(void)
+ {
++        fprintf(stderr, "OpenBSD netcat (Debian patchlevel " DEBIAN_VERSION ")\n");
+ 	usage(0);
+ 	fprintf(stderr, "\tCommand Summary:\n\
+ 	\t-4		Use IPv4\n\
+@@ -1244,7 +1245,7 @@ help(void)
+ 	\t-x addr[:port]\tSpecify proxy address and port\n\
+ 	\t-z		Zero-I/O mode [used for scanning]\n\
+ 	Port numbers can be individual or ranges: lo-hi [inclusive]\n");
+-	exit(1);
++	exit(0);
+ }
+ 
+ void
+-- 

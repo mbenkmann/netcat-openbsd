@@ -1,8 +1,16 @@
-Index: netcat-openbsd-1.89/netcat.c
-===================================================================
---- netcat-openbsd-1.89.orig/netcat.c	2008-01-22 16:17:18.000000000 -0500
-+++ netcat-openbsd-1.89/netcat.c	2008-01-22 16:17:25.000000000 -0500
-@@ -618,9 +618,7 @@
+From: Aron Xu <aron@debian.org>
+Date: Mon, 13 Feb 2012 15:08:33 +0800
+Subject: [PATCH] poll hup
+
+---
+ netcat.c |   24 +++++++++++++++++-------
+ 1 files changed, 17 insertions(+), 7 deletions(-)
+
+diff --git a/netcat.c b/netcat.c
+index 4c56bad..ad2ddb4 100644
+--- a/netcat.c
++++ b/netcat.c
+@@ -867,9 +867,7 @@ readwrite(int nfd)
  			if ((n = read(nfd, buf, plen)) < 0)
  				return;
  			else if (n == 0) {
@@ -13,8 +21,8 @@ Index: netcat-openbsd-1.89/netcat.c
  			} else {
  				if (tflag)
  					atelnet(nfd, buf, n);
-@@ -628,18 +626,30 @@
- 					return;
+@@ -885,18 +883,30 @@ readwrite(int nfd)
+                                 }
  			}
  		}
 +		else if (pfd[0].revents & POLLHUP) {
@@ -38,13 +46,14 @@ Index: netcat-openbsd-1.89/netcat.c
  				if (atomicio(vwrite, nfd, buf, n) != n)
  					return;
  			}
-+		    }
-+		    else if (pfd[1].revents & POLLHUP) {
-+		    shutdown_wr:
++			}
++		}
++		else if (pfd[1].revents & POLLHUP) {
++		shutdown_wr:
 +			shutdown(nfd, SHUT_WR);
 +			pfd[1].fd = -1;
 +			pfd[1].events = 0;
-+		    }
  		}
  	}
  }
+-- 
