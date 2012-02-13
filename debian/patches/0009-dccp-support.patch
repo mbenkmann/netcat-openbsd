@@ -6,11 +6,9 @@ Subject: [PATCH] dccp support
  netcat.c |   82 ++++++++++++++++++++++++++++++++++++++++++++++++++++----------
  1 files changed, 69 insertions(+), 13 deletions(-)
 
-diff --git a/netcat.c b/netcat.c
-index d71a8b6..40f7129 100644
 --- a/netcat.c
 +++ b/netcat.c
-@@ -118,6 +118,7 @@ int	rflag;					/* Random ports flag */
+@@ -118,6 +118,7 @@
  char   *sflag;					/* Source Address */
  int	tflag;					/* Telnet Emulation */
  int	uflag;					/* UDP - Default to TCP */
@@ -18,7 +16,7 @@ index d71a8b6..40f7129 100644
  int	vflag;					/* Verbosity */
  int	xflag;					/* Socks proxy */
  int	zflag;					/* Port Scan Flag */
-@@ -149,6 +150,7 @@ int	unix_listen(char *);
+@@ -149,6 +150,7 @@
  void	set_common_sockopts(int);
  int	map_tos(char *, int *);
  void	usage(int);
@@ -26,7 +24,7 @@ index d71a8b6..40f7129 100644
  
  static int connect_with_timeout(int fd, const struct sockaddr *sa,
          socklen_t salen, int ctimeout);
-@@ -176,7 +178,7 @@ main(int argc, char *argv[])
+@@ -176,7 +178,7 @@
  	sv = NULL;
  
  	while ((ch = getopt(argc, argv,
@@ -35,7 +33,7 @@ index d71a8b6..40f7129 100644
  		switch (ch) {
  		case '4':
  			family = AF_INET;
-@@ -245,6 +247,9 @@ main(int argc, char *argv[])
+@@ -245,6 +247,9 @@
  		case 'u':
  			uflag = 1;
  			break;
@@ -45,7 +43,7 @@ index d71a8b6..40f7129 100644
  # if defined(RT_TABLEID_MAX)
  		case 'V':
  			rtableid = (unsigned int)strtonum(optarg, 0,
-@@ -314,6 +319,10 @@ main(int argc, char *argv[])
+@@ -314,6 +319,10 @@
  
  	/* Cruft to make sure options are clean, and used properly. */
  	if (argv[0] && !argv[1] && family == AF_UNIX) {
@@ -56,7 +54,7 @@ index d71a8b6..40f7129 100644
  		host = argv[0];
  		uport = NULL;
  	} else if (argv[0] && !argv[1]) {
-@@ -353,8 +362,18 @@ main(int argc, char *argv[])
+@@ -353,8 +362,18 @@
  	if (family != AF_UNIX) {
  		memset(&hints, 0, sizeof(struct addrinfo));
  		hints.ai_family = family;
@@ -77,7 +75,7 @@ index d71a8b6..40f7129 100644
  		if (nflag)
  			hints.ai_flags |= AI_NUMERICHOST;
  	}
-@@ -363,6 +382,9 @@ main(int argc, char *argv[])
+@@ -363,6 +382,9 @@
  		if (uflag)
  			errx(1, "no proxy support for UDP mode");
  
@@ -87,7 +85,7 @@ index d71a8b6..40f7129 100644
  		if (lflag)
  			errx(1, "no proxy support for listen");
  
-@@ -430,18 +452,19 @@ main(int argc, char *argv[])
+@@ -430,12 +452,13 @@
  				connfd = accept(s, (struct sockaddr *)&cliaddr,
  				    &len);
  				if(vflag) {
@@ -101,15 +99,17 @@ index d71a8b6..40f7129 100644
 +							proto);
  
  					char buf[150];
+ 					int custom_family = AF_INET;
+@@ -444,7 +467,7 @@
  					fprintf(stderr, "Connection from %s port %s [%s/%s] accepted\n",
- 						inet_ntop(family,&((struct sockaddr_in *)(&cliaddr))->sin_addr,buf,150),
+ 						buf,
  						uport,
 -						uflag ? "udp" : "tcp",
 +						proto,
  						sv ? sv->s_name : "*");
  				}
  				readwrite(connfd);
-@@ -614,6 +637,22 @@ unix_listen(char *path)
+@@ -617,6 +640,22 @@
  	return (s);
  }
  
@@ -132,7 +132,7 @@ index d71a8b6..40f7129 100644
  /*
   * remote_connect()
   * Returns a socket connected to a remote host. Properly binds to a local
-@@ -652,8 +691,19 @@ remote_connect(const char *host, const char *port, struct addrinfo hints)
+@@ -655,8 +694,19 @@
  # endif
  			memset(&ahints, 0, sizeof(struct addrinfo));
  			ahints.ai_family = res0->ai_family;
@@ -154,7 +154,7 @@ index d71a8b6..40f7129 100644
  			ahints.ai_flags = AI_PASSIVE;
  			if ((error = getaddrinfo(sflag, pflag, &ahints, &ares)))
  				errx(1, "getaddrinfo: %s", gai_strerror(error));
-@@ -665,15 +715,19 @@ remote_connect(const char *host, const char *port, struct addrinfo hints)
+@@ -668,15 +718,19 @@
  		}
  
  		set_common_sockopts(s);
@@ -179,7 +179,7 @@ index d71a8b6..40f7129 100644
  
  		close(s);
  		s = -1;
-@@ -987,7 +1041,8 @@ build_ports(char *p)
+@@ -990,7 +1044,8 @@
  	int hi, lo, cp;
  	int x = 0;
  
@@ -189,7 +189,7 @@ index d71a8b6..40f7129 100644
          if (sv) {
                  portlist[0] = calloc(1, PORT_MAX_LEN);
                  if (portlist[0] == NULL)
-@@ -1181,6 +1236,7 @@ help(void)
+@@ -1184,6 +1239,7 @@
  	\t-t		Answer TELNET negotiation\n\
  	\t-U		Use UNIX domain socket\n\
  	\t-u		UDP mode\n\
@@ -197,4 +197,3 @@ index d71a8b6..40f7129 100644
  	\t-V rtable	Specify alternate routing table\n\
  	\t-v		Verbose\n\
  	\t-w secs\t	Timeout for connects and final net reads\n\
--- 
