@@ -98,18 +98,26 @@ Subject: [PATCH] dccp support
 -							uflag ? "udp" : "tcp");
 +							proto);
  
- 					char buf[150];
- 					int custom_family = AF_INET;
-@@ -444,7 +467,7 @@
- 					fprintf(stderr, "Connection from %s port %s [%s/%s] accepted\n",
- 						buf,
- 						uport,
--						uflag ? "udp" : "tcp",
-+						proto,
- 						sv ? sv->s_name : "*");
- 				}
- 				readwrite(connfd);
-@@ -617,6 +640,22 @@
+ 					if ((((struct sockaddr *)&cliaddr)->sa_family == AF_INET) || (((struct sockaddr *)&cliaddr)->sa_family == AF_INET6)) {
+ 						char buf[150];
+@@ -443,14 +466,14 @@
+ 						fprintf(stderr, "Connection from %s port %s [%s/%s] accepted (protocal family %d)\n",
+ 							buf,
+ 							uport,
+-							uflag ? "udp" : "tcp",
++							proto,
+ 							sv ? sv->s_name : "*",
+ 							((struct sockaddr *)(&cliaddr))->sa_family);
+ 					}
+ 					else {
+ 						fprintf(stderr, "Connection from port %s [%s/%s] accepted (protocal family %d)\n",
+ 							uport,
+-							uflag ? "udp" : "tcp",
++							proto,
+ 							sv ? sv->s_name : "*",
+ 							((struct sockaddr *)(&cliaddr))->sa_family);
+ 					}
+@@ -625,6 +648,22 @@
  	return (s);
  }
  
@@ -132,7 +140,7 @@ Subject: [PATCH] dccp support
  /*
   * remote_connect()
   * Returns a socket connected to a remote host. Properly binds to a local
-@@ -655,8 +694,19 @@
+@@ -663,8 +702,19 @@
  # endif
  			memset(&ahints, 0, sizeof(struct addrinfo));
  			ahints.ai_family = res0->ai_family;
@@ -154,7 +162,7 @@ Subject: [PATCH] dccp support
  			ahints.ai_flags = AI_PASSIVE;
  			if ((error = getaddrinfo(sflag, pflag, &ahints, &ares)))
  				errx(1, "getaddrinfo: %s", gai_strerror(error));
-@@ -668,15 +718,19 @@
+@@ -676,15 +726,19 @@
  		}
  
  		set_common_sockopts(s);
@@ -179,7 +187,7 @@ Subject: [PATCH] dccp support
  
  		close(s);
  		s = -1;
-@@ -990,7 +1044,8 @@
+@@ -998,7 +1052,8 @@
  	int hi, lo, cp;
  	int x = 0;
  
@@ -189,7 +197,7 @@ Subject: [PATCH] dccp support
          if (sv) {
                  portlist[0] = calloc(1, PORT_MAX_LEN);
                  if (portlist[0] == NULL)
-@@ -1184,6 +1239,7 @@
+@@ -1192,6 +1247,7 @@
  	\t-t		Answer TELNET negotiation\n\
  	\t-U		Use UNIX domain socket\n\
  	\t-u		UDP mode\n\
