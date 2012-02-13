@@ -11,4 +11,6 @@ DEB_VER = $(shell dpkg-parsechangelog | sed -n 's/^Version: //p')
 	dh $@
 override_dh_auto_build:
 	$(MAKE) CFLAGS='$(DEB_CFLAGS) -DDEBIAN_VERSION=\"$(DEB_VER)\"' LDFLAGS="$(DEB_LDFLAGS)"
-
+override_dh_auto_install:
+	mv nc nc.openbsd
+	dh_auto_install

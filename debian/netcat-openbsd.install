@@ -1,2 +1,2 @@
-nc bin/nc.openbsd
+nc.openbsd bin/
 nc.1 usr/share/man/man1/
