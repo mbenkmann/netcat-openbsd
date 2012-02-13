@@ -1,10 +1,5 @@
 Format: http://dep.debian.net/deps/dep5/
 Source: http://www.openbsd.org/cgi-bin/cvsweb/src/usr.bin/nc/
-The netcat-openbsd Debian package was created by Soren Hansen
-<soren@ubuntu.com> and by Decklin Foster <decklin@red-bean.com>, based
-loosely on the original netcat package. The code itself was rewritten
-by the OpenBSD project, from the original implementation by Hobbit
-<hobbit@atstake.com>.
 
 Files: netcat.c
 Copyright: 2001 Eric Jackson <ericj@monkey.org>
