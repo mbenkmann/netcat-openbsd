@@ -26,7 +26,7 @@ unpatch:
 build: build-stamp
 build-stamp: patch-stamp
 
-	$(MAKE) CFLAGS='$(DEB_CFLAGS) -DDEBIAN_VERSION=\"$(DEB_VER)\"' LDFLAGS=$(DEB_LDFLAGS)
+	$(MAKE) CFLAGS='$(DEB_CFLAGS) -DDEBIAN_VERSION=\"$(DEB_VER)\"' LDFLAGS="$(DEB_LDFLAGS)"
 	touch build-stamp
 
 clean: unpatch
@@ -37,7 +37,7 @@ clean: unpatch
 install:
 	dh_testdir
 	dh_testroot
-	dh_clean -k
+	dh_prep
 	dh_installdirs
 
 	$(INSTALL_PROG) nc $(CURDIR)/debian/netcat-openbsd/bin/nc.openbsd
