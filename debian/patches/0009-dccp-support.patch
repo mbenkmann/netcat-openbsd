@@ -177,7 +177,7 @@ Subject: [PATCH] dccp support
  
  		close(s);
  		s = -1;
-@@ -981,7 +1035,8 @@
+@@ -987,7 +1041,8 @@
  	int hi, lo, cp;
  	int x = 0;
  
@@ -187,7 +187,7 @@ Subject: [PATCH] dccp support
          if (sv) {
                  portlist[0] = calloc(1, PORT_MAX_LEN);
                  if (portlist[0] == NULL)
-@@ -1175,6 +1230,7 @@
+@@ -1181,6 +1236,7 @@
  	\t-t		Answer TELNET negotiation\n\
  	\t-U		Use UNIX domain socket\n\
  	\t-u		UDP mode\n\

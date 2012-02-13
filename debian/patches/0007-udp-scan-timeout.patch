@@ -26,7 +26,7 @@ Subject: [PATCH] udp scan timeout
  				/* For UDP, make sure we are connected. */
  				if (uflag) {
  					if (udptest(s) == -1) {
-@@ -1027,15 +1029,20 @@
+@@ -1033,15 +1035,20 @@
  int
  udptest(int s)
  {
