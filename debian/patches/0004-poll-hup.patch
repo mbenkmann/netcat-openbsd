@@ -6,11 +6,9 @@ Subject: [PATCH] poll hup
  netcat.c |   24 +++++++++++++++++-------
  1 files changed, 17 insertions(+), 7 deletions(-)
 
-diff --git a/netcat.c b/netcat.c
-index 4c56bad..ad2ddb4 100644
 --- a/netcat.c
 +++ b/netcat.c
-@@ -867,9 +867,7 @@ readwrite(int nfd)
+@@ -863,9 +863,7 @@
  			if ((n = read(nfd, buf, plen)) < 0)
  				return;
  			else if (n == 0) {
@@ -21,8 +19,8 @@ index 4c56bad..ad2ddb4 100644
  			} else {
  				if (tflag)
  					atelnet(nfd, buf, n);
-@@ -885,18 +883,30 @@ readwrite(int nfd)
-                                 }
+@@ -873,18 +871,30 @@
+ 					return;
  			}
  		}
 +		else if (pfd[0].revents & POLLHUP) {
@@ -47,13 +45,12 @@ index 4c56bad..ad2ddb4 100644
  					return;
  			}
 +			}
-+		}
-+		else if (pfd[1].revents & POLLHUP) {
-+		shutdown_wr:
-+			shutdown(nfd, SHUT_WR);
-+			pfd[1].fd = -1;
-+			pfd[1].events = 0;
++			else if (pfd[1].revents & POLLHUP) {
++			shutdown_wr:
++				shutdown(nfd, SHUT_WR);
++				pfd[1].fd = -1;
++				pfd[1].events = 0;
++			}
  		}
  	}
  }
--- 
