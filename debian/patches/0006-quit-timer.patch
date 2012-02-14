@@ -6,8 +6,6 @@ Subject: [PATCH] quit timer
  netcat.c |   29 +++++++++++++++++++++++++++--
  1 files changed, 27 insertions(+), 2 deletions(-)
 
-diff --git a/netcat.c b/netcat.c
-index b2bfcc5..9f91b67 100644
 --- a/netcat.c
 +++ b/netcat.c
 @@ -75,6 +75,7 @@
@@ -18,15 +16,15 @@ index b2bfcc5..9f91b67 100644
  #include <stdarg.h>
  #include <stdio.h>
  #include <stdlib.h>
-@@ -109,6 +110,7 @@ int	lflag;					/* Bind to local port */
+@@ -109,6 +110,7 @@
  int	nflag;					/* Don't do name look up */
  char   *Pflag;					/* Proxy username */
  char   *pflag;					/* Localport flag */
-+int     qflag = -1;                             /* Quit after some secs */
++int     qflag = 0;                             /* Quit after some secs */
  int	rflag;					/* Random ports flag */
  char   *sflag;					/* Source Address */
  int	tflag;					/* Telnet Emulation */
-@@ -147,6 +149,7 @@ void	usage(int);
+@@ -147,6 +149,7 @@
  
  static int connect_with_timeout(int fd, const struct sockaddr *sa,
          socklen_t salen, int ctimeout);
@@ -34,7 +32,7 @@ index b2bfcc5..9f91b67 100644
  
  int
  main(int argc, char *argv[])
-@@ -170,7 +173,7 @@ main(int argc, char *argv[])
+@@ -170,7 +173,7 @@
  	sv = NULL;
  
  	while ((ch = getopt(argc, argv,
@@ -43,7 +41,7 @@ index b2bfcc5..9f91b67 100644
  		switch (ch) {
  		case '4':
  			family = AF_INET;
-@@ -222,6 +225,11 @@ main(int argc, char *argv[])
+@@ -222,6 +225,11 @@
  		case 'p':
  			pflag = optarg;
  			break;
@@ -55,22 +53,29 @@ index b2bfcc5..9f91b67 100644
  		case 'r':
  			rflag = 1;
  			break;
-@@ -905,7 +913,13 @@ readwrite(int nfd)
+@@ -905,9 +913,19 @@
  			}
  			else if (pfd[1].revents & POLLHUP) {
  			shutdown_wr:
--				shutdown(nfd, SHUT_WR);
++			/* if the user asked to exit on EOF, do it */
++			if (qflag == 0) {
+ 				shutdown(nfd, SHUT_WR);
+-				pfd[1].fd = -1;
+-				pfd[1].events = 0;
++				close(wfd);
++				exit(0);
++			}
 +			/* if user asked to die after a while, arrange for it */
 +			if (qflag > 0) {
-+				 signal(SIGALRM, quit);
-+				 alarm(qflag);
-+			} else {
-+				 shutdown(nfd, SHUT_WR);
-+                        }
- 				pfd[1].fd = -1;
- 				pfd[1].events = 0;
++				signal(SIGALRM, quit);
++				alarm(qflag);
++			}
++			pfd[1].fd = -1;
++			pfd[1].events = 0;
  			}
-@@ -1139,6 +1153,7 @@ help(void)
+ 		}
+ 	}
+@@ -1139,6 +1157,7 @@
  	\t-O length	TCP send buffer length\n\
  	\t-P proxyuser\tUsername for proxy authentication\n\
  	\t-p port\t	Specify local port for remote connects\n\
@@ -78,7 +83,7 @@ index b2bfcc5..9f91b67 100644
  	\t-r		Randomize remote ports\n\
  	\t-S		Enable the TCP MD5 signature option\n\
  	\t-s addr\t	Local source address\n\
-@@ -1167,3 +1182,13 @@ usage(int ret)
+@@ -1167,3 +1186,13 @@
  	if (ret)
  		exit(1);
  }
@@ -92,4 +97,3 @@ index b2bfcc5..9f91b67 100644
 +        /* XXX: should explicitly close fds here */
 +        exit(0);
 +}
--- 

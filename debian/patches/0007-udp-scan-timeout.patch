@@ -6,8 +6,6 @@ Subject: [PATCH] udp scan timeout
  netcat.c |   25 ++++++++++++++++---------
  1 files changed, 16 insertions(+), 9 deletions(-)
 
-diff --git a/netcat.c b/netcat.c
-index 9f91b67..c9d1a81 100644
 --- a/netcat.c
 +++ b/netcat.c
 @@ -100,6 +100,8 @@
@@ -19,7 +17,7 @@ index 9f91b67..c9d1a81 100644
  /* Command Line Options */
  int     Cflag = 0;                              /* CRLF line-ending */
  int	dflag;					/* detached, no stdin */
-@@ -478,7 +480,7 @@ main(int argc, char *argv[])
+@@ -478,7 +480,7 @@
  				continue;
  
  			ret = 0;
@@ -28,19 +26,18 @@ index 9f91b67..c9d1a81 100644
  				/* For UDP, make sure we are connected. */
  				if (uflag) {
  					if (udptest(s) == -1) {
-@@ -1035,15 +1037,20 @@ build_ports(char *p)
+@@ -1039,15 +1041,20 @@
  int
  udptest(int s)
  {
 -	int i, ret;
--
++	int i, t;
+ 
 -	for (i = 0; i <= 3; i++) {
 -		if (write(s, "X", 1) == 1)
 -			ret = 1;
 -		else
 -			ret = -1;
-+	int i, t;
-+
 +	if ((write(s, "X", 1) != 1) ||
 +	    ((write(s, "X", 1) != 1) && (errno == ECONNREFUSED)))
 +		return -1;
@@ -57,4 +54,3 @@ index 9f91b67..c9d1a81 100644
  }
  
  void
--- 

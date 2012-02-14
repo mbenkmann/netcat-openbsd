@@ -6,11 +6,9 @@ Subject: [PATCH] dccp support
  netcat.c |   86 +++++++++++++++++++++++++++++++++++++++++++++++++++-----------
  1 files changed, 71 insertions(+), 15 deletions(-)
 
-diff --git a/netcat.c b/netcat.c
-index d7744ca..0bd264d 100644
 --- a/netcat.c
 +++ b/netcat.c
-@@ -118,6 +118,7 @@ int	rflag;					/* Random ports flag */
+@@ -118,6 +118,7 @@
  char   *sflag;					/* Source Address */
  int	tflag;					/* Telnet Emulation */
  int	uflag;					/* UDP - Default to TCP */
@@ -18,7 +16,7 @@ index d7744ca..0bd264d 100644
  int	vflag;					/* Verbosity */
  int	xflag;					/* Socks proxy */
  int	zflag;					/* Port Scan Flag */
-@@ -149,6 +150,7 @@ int	unix_listen(char *);
+@@ -149,6 +150,7 @@
  void	set_common_sockopts(int);
  int	map_tos(char *, int *);
  void	usage(int);
@@ -26,7 +24,7 @@ index d7744ca..0bd264d 100644
  
  static int connect_with_timeout(int fd, const struct sockaddr *sa,
          socklen_t salen, int ctimeout);
-@@ -176,7 +178,7 @@ main(int argc, char *argv[])
+@@ -176,7 +178,7 @@
  	sv = NULL;
  
  	while ((ch = getopt(argc, argv,
@@ -35,7 +33,7 @@ index d7744ca..0bd264d 100644
  		switch (ch) {
  		case '4':
  			family = AF_INET;
-@@ -245,6 +247,9 @@ main(int argc, char *argv[])
+@@ -245,6 +247,9 @@
  		case 'u':
  			uflag = 1;
  			break;
@@ -45,7 +43,7 @@ index d7744ca..0bd264d 100644
  # if defined(RT_TABLEID_MAX)
  		case 'V':
  			rtableid = (unsigned int)strtonum(optarg, 0,
-@@ -314,6 +319,10 @@ main(int argc, char *argv[])
+@@ -314,6 +319,10 @@
  
  	/* Cruft to make sure options are clean, and used properly. */
  	if (argv[0] && !argv[1] && family == AF_UNIX) {
@@ -56,7 +54,7 @@ index d7744ca..0bd264d 100644
  		host = argv[0];
  		uport = NULL;
  	} else if (!argv[0] && lflag) {
-@@ -355,8 +364,18 @@ main(int argc, char *argv[])
+@@ -355,8 +364,18 @@
  	if (family != AF_UNIX) {
  		memset(&hints, 0, sizeof(struct addrinfo));
  		hints.ai_family = family;
@@ -77,7 +75,7 @@ index d7744ca..0bd264d 100644
  		if (nflag)
  			hints.ai_flags |= AI_NUMERICHOST;
  	}
-@@ -365,6 +384,9 @@ main(int argc, char *argv[])
+@@ -365,6 +384,9 @@
  		if (uflag)
  			errx(1, "no proxy support for UDP mode");
  
@@ -87,7 +85,7 @@ index d7744ca..0bd264d 100644
  		if (lflag)
  			errx(1, "no proxy support for listen");
  
-@@ -432,12 +454,13 @@ main(int argc, char *argv[])
+@@ -432,12 +454,13 @@
  				connfd = accept(s, (struct sockaddr *)&cliaddr,
  				    &len);
  				if(vflag) {
@@ -102,7 +100,7 @@ index d7744ca..0bd264d 100644
  
  					if (((struct sockaddr *)&cliaddr)->sa_family == AF_INET) {
  						char dst[INET_ADDRSTRLEN];
-@@ -445,7 +468,7 @@ main(int argc, char *argv[])
+@@ -445,7 +468,7 @@
  						fprintf(stderr, "Connection from %s port %s [%s/%s] accepted (protocal family %d)\n",
  							dst,
  							uport,
@@ -111,7 +109,7 @@ index d7744ca..0bd264d 100644
  							sv ? sv->s_name : "*",
  							((struct sockaddr *)(&cliaddr))->sa_family);
  					}
-@@ -455,14 +478,14 @@ main(int argc, char *argv[])
+@@ -455,14 +478,14 @@
  						fprintf(stderr, "Connection from %s port %s [%s/%s] accepted (protocal family %d)\n",
  							dst,
  							uport,
@@ -128,7 +126,7 @@ index d7744ca..0bd264d 100644
  							sv ? sv->s_name : "*",
  							((struct sockaddr *)(&cliaddr))->sa_family);
  					}
-@@ -637,6 +660,22 @@ unix_listen(char *path)
+@@ -637,6 +660,22 @@
  	return (s);
  }
  
@@ -151,7 +149,7 @@ index d7744ca..0bd264d 100644
  /*
   * remote_connect()
   * Returns a socket connected to a remote host. Properly binds to a local
-@@ -675,8 +714,19 @@ remote_connect(const char *host, const char *port, struct addrinfo hints)
+@@ -675,8 +714,19 @@
  # endif
  			memset(&ahints, 0, sizeof(struct addrinfo));
  			ahints.ai_family = res0->ai_family;
@@ -173,7 +171,7 @@ index d7744ca..0bd264d 100644
  			ahints.ai_flags = AI_PASSIVE;
  			if ((error = getaddrinfo(sflag, pflag, &ahints, &ares)))
  				errx(1, "getaddrinfo: %s", gai_strerror(error));
-@@ -688,15 +738,19 @@ remote_connect(const char *host, const char *port, struct addrinfo hints)
+@@ -688,15 +738,19 @@
  		}
  
  		set_common_sockopts(s);
@@ -198,7 +196,7 @@ index d7744ca..0bd264d 100644
  
  		close(s);
  		s = -1;
-@@ -1010,7 +1064,8 @@ build_ports(char *p)
+@@ -1014,7 +1068,8 @@
  	int hi, lo, cp;
  	int x = 0;
  
@@ -208,7 +206,7 @@ index d7744ca..0bd264d 100644
          if (sv) {
                  portlist[0] = calloc(1, PORT_MAX_LEN);
                  if (portlist[0] == NULL)
-@@ -1204,6 +1259,7 @@ help(void)
+@@ -1208,6 +1263,7 @@
  	\t-t		Answer TELNET negotiation\n\
  	\t-U		Use UNIX domain socket\n\
  	\t-u		UDP mode\n\
@@ -216,4 +214,3 @@ index d7744ca..0bd264d 100644
  	\t-V rtable	Specify alternate routing table\n\
  	\t-v		Verbose\n\
  	\t-w secs\t	Timeout for connects and final net reads\n\
--- 
