@@ -99,10 +99,10 @@ Subject: [PATCH] dccp support
 +							proto);
  
  					if ((((struct sockaddr *)&cliaddr)->sa_family == AF_INET) || (((struct sockaddr *)&cliaddr)->sa_family == AF_INET6)) {
- 						char buf[150];
+ 						char dst[INET6_ADDRSTRLEN];
 @@ -443,14 +466,14 @@
  						fprintf(stderr, "Connection from %s port %s [%s/%s] accepted (protocal family %d)\n",
- 							buf,
+ 							dst,
  							uport,
 -							uflag ? "udp" : "tcp",
 +							proto,
