@@ -36,8 +36,8 @@ Subject: [PATCH] quit timer
  	sv = NULL;
  
  	while ((ch = getopt(argc, argv,
--	    "46DdhI:i:jklnO:P:p:rSs:tT:UuV:vw:X:x:z")) != -1) {
-+	    "46DdhI:i:jklnO:P:p:q:rSs:tT:UuV:vw:X:x:z")) != -1) {
+-	    "46CDdhI:i:jklnO:P:p:rSs:tT:UuV:vw:X:x:z")) != -1) {
++	    "46CDdhI:i:jklnO:P:p:q:rSs:tT:UuV:vw:X:x:z")) != -1) {
  		switch (ch) {
  		case '4':
  			family = AF_INET;
@@ -75,15 +75,22 @@ Subject: [PATCH] quit timer
  			}
  		}
  	}
-@@ -1139,6 +1157,7 @@
+@@ -1140,6 +1158,7 @@
  	\t-O length	TCP send buffer length\n\
  	\t-P proxyuser\tUsername for proxy authentication\n\
  	\t-p port\t	Specify local port for remote connects\n\
-+        \t-q secs\t quit after EOF on stdin and delay of secs\n\
++        \t-q secs\t	quit after EOF on stdin and delay of secs\n\
  	\t-r		Randomize remote ports\n\
  	\t-S		Enable the TCP MD5 signature option\n\
  	\t-s addr\t	Local source address\n\
-@@ -1167,3 +1186,13 @@
+@@ -1162,9 +1181,19 @@
+ {
+ 	fprintf(stderr,
+ 	    "usage: nc [-46CDdhklnrStUuvz] [-I length] [-i interval] [-O length]\n"
+-	    "\t  [-P proxy_username] [-p source_port] [-s source]\n"
++	    "\t  [-P proxy_username] [-p source_port] [-q seconds] [-s source]\n"
+ 	    "\t  [-T ToS] [-V rtable] [-w timeout] [-X proxy_protocol]\n"
+ 	    "\t  [-x proxy_address[:port]] [destination] [port]\n");
  	if (ret)
  		exit(1);
  }
@@ -97,3 +104,24 @@ Subject: [PATCH] quit timer
 +        /* XXX: should explicitly close fds here */
 +        exit(0);
 +}
+--- a/nc.1
++++ b/nc.1
+@@ -40,6 +40,7 @@
+ .Op Fl O Ar length
+ .Op Fl P Ar proxy_username
+ .Op Fl p Ar source_port
++.Op Fl q Ar seconds
+ .Op Fl s Ar source
+ .Op Fl T Ar toskeyword
+ .Op Fl V Ar rtable
+@@ -151,6 +152,10 @@
+ It is an error to use this option in conjunction with the
+ .Fl l
+ option.
++.It Fl q Ar seconds
++after EOF on stdin, wait the specified number of seconds and then quit. If
++.Ar seconds
++is negative, wait forever.
+ .It Fl r
+ Specifies that source and/or destination ports should be chosen randomly
+ instead of sequentially within a range or in the order that the system

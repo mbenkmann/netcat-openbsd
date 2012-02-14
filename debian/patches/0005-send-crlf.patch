@@ -7,8 +7,6 @@ Subject: [PATCH] send crlf
  netcat.c |   16 ++++++++++++++--
  2 files changed, 22 insertions(+), 4 deletions(-)
 
-diff --git a/nc.1 b/nc.1
-index 75d1437..6cf603b 100644
 --- a/nc.1
 +++ b/nc.1
 @@ -34,7 +34,7 @@
@@ -16,31 +14,20 @@ index 75d1437..6cf603b 100644
  .Nm nc
  .Bk -words
 -.Op Fl 46DdhklnrStUuvz
-+.Op Fl 46DdhklnrStUuvzC
++.Op Fl 46CDdhklnrStUuvz
  .Op Fl I Ar length
  .Op Fl i Ar interval
  .Op Fl O Ar length
-@@ -149,6 +149,10 @@ should use, subject to privilege restrictions and availability.
- It is an error to use this option in conjunction with the
- .Fl l
- option.
-+.It Fl q
-+after EOF on stdin, wait the specified number of seconds and then quit. If
-+.Ar seconds
-+is negative, wait forever.
- .It Fl r
- Specifies that source and/or destination ports should be chosen randomly
- instead of sequentially within a range or in the order that the system
-@@ -179,6 +183,8 @@ or one of the DiffServ Code Points:
- .Ar af11 ... af43 ,
- .Ar cs0 ... cs7 ;
- or a number in either hex or decimal.
-+.IT Fl C
-+Send CRLF as line-ending
- .It Fl t
- Causes
+@@ -98,6 +98,8 @@
+ Forces
  .Nm
-@@ -357,7 +363,7 @@ More complicated examples can be built up when the user knows the format
+ to use IPv6 addresses only.
++.It Fl C
++Send CRLF as line-ending.
+ .It Fl D
+ Enable debugging on the socket.
+ .It Fl d
+@@ -357,7 +359,7 @@
  of requests required by the server.
  As another example, an email may be submitted to an SMTP server using:
  .Bd -literal -offset indent
@@ -49,8 +36,6 @@ index 75d1437..6cf603b 100644
  HELO host.example.com
  MAIL FROM:\*(Ltuser@host.example.com\*(Gt
  RCPT TO:\*(Ltuser2@host.example.com\*(Gt
-diff --git a/netcat.c b/netcat.c
-index 05d8c56..b2bfcc5 100644
 --- a/netcat.c
 +++ b/netcat.c
 @@ -100,6 +100,7 @@
@@ -61,7 +46,16 @@ index 05d8c56..b2bfcc5 100644
  int	dflag;					/* detached, no stdin */
  unsigned int iflag;				/* Interval Flag */
  int	jflag;					/* use jumbo frames if we can */
-@@ -290,6 +291,9 @@ main(int argc, char *argv[])
+@@ -169,7 +170,7 @@
+ 	sv = NULL;
+ 
+ 	while ((ch = getopt(argc, argv,
+-	    "46DdhI:i:jklnO:P:p:rSs:tT:UuV:vw:X:x:z")) != -1) {
++	    "46CDdhI:i:jklnO:P:p:rSs:tT:UuV:vw:X:x:z")) != -1) {
+ 		switch (ch) {
+ 		case '4':
+ 			family = AF_INET;
+@@ -290,6 +291,9 @@
  			if (Tflag < 0 || Tflag > 255 || errstr || errno)
  				errx(1, "illegal tos value %s", optarg);
  			break;
@@ -71,7 +65,7 @@ index 05d8c56..b2bfcc5 100644
  		default:
  			usage(1);
  		}
-@@ -887,8 +891,16 @@ readwrite(int nfd)
+@@ -887,8 +891,16 @@
  			else if (n == 0) {
  				goto shutdown_wr;
  			} else {
@@ -90,4 +84,24 @@ index 05d8c56..b2bfcc5 100644
  			}
  			}
  			else if (pfd[1].revents & POLLHUP) {
--- 
+@@ -1116,6 +1128,7 @@
+ 	fprintf(stderr, "\tCommand Summary:\n\
+ 	\t-4		Use IPv4\n\
+ 	\t-6		Use IPv6\n\
++	\t-C		Send CRLF as line-ending\n\
+ 	\t-D		Enable the debug socket option\n\
+ 	\t-d		Detach from stdin\n\
+ 	\t-h		This help text\n\
+@@ -1148,9 +1161,9 @@
+ usage(int ret)
+ {
+ 	fprintf(stderr,
+-	    "usage: nc [-46DdhklnrStUuvz] [-I length] [-i interval] [-O length]\n"
+-	    "\t  [-P proxy_username] [-p source_port] [-s source] [-T ToS]\n"
+-	    "\t  [-V rtable] [-w timeout] [-X proxy_protocol]\n"
++	    "usage: nc [-46CDdhklnrStUuvz] [-I length] [-i interval] [-O length]\n"
++	    "\t  [-P proxy_username] [-p source_port] [-s source]\n"
++	    "\t  [-T ToS] [-V rtable] [-w timeout] [-X proxy_protocol]\n"
+ 	    "\t  [-x proxy_address[:port]] [destination] [port]\n");
+ 	if (ret)
+ 		exit(1);
