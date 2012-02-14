@@ -6,8 +6,6 @@ Subject: [PATCH] quit timer
  netcat.c |   29 +++++++++++++++++++++++++++--
  1 files changed, 27 insertions(+), 2 deletions(-)
 
-diff --git a/netcat.c b/netcat.c
-index 1ad4903..29af388 100644
 --- a/netcat.c
 +++ b/netcat.c
 @@ -75,6 +75,7 @@
@@ -18,7 +16,7 @@ index 1ad4903..29af388 100644
  #include <stdarg.h>
  #include <stdio.h>
  #include <stdlib.h>
-@@ -109,6 +110,7 @@ int	lflag;					/* Bind to local port */
+@@ -109,6 +110,7 @@
  int	nflag;					/* Don't do name look up */
  char   *Pflag;					/* Proxy username */
  char   *pflag;					/* Localport flag */
@@ -26,7 +24,7 @@ index 1ad4903..29af388 100644
  int	rflag;					/* Random ports flag */
  char   *sflag;					/* Source Address */
  int	tflag;					/* Telnet Emulation */
-@@ -147,6 +149,7 @@ void	usage(int);
+@@ -147,6 +149,7 @@
  
  static int connect_with_timeout(int fd, const struct sockaddr *sa,
          socklen_t salen, int ctimeout);
@@ -34,7 +32,7 @@ index 1ad4903..29af388 100644
  
  int
  main(int argc, char *argv[])
-@@ -170,7 +173,7 @@ main(int argc, char *argv[])
+@@ -170,7 +173,7 @@
  	sv = NULL;
  
  	while ((ch = getopt(argc, argv,
@@ -43,7 +41,7 @@ index 1ad4903..29af388 100644
  		switch (ch) {
  		case '4':
  			family = AF_INET;
-@@ -222,6 +225,11 @@ main(int argc, char *argv[])
+@@ -222,6 +225,11 @@
  		case 'p':
  			pflag = optarg;
  			break;
@@ -55,7 +53,7 @@ index 1ad4903..29af388 100644
  		case 'r':
  			rflag = 1;
  			break;
-@@ -903,7 +911,13 @@ readwrite(int nfd)
+@@ -904,7 +912,13 @@
  			}
  			else if (pfd[1].revents & POLLHUP) {
  			shutdown_wr:
@@ -70,7 +68,7 @@ index 1ad4903..29af388 100644
  				pfd[1].fd = -1;
  				pfd[1].events = 0;
  			}
-@@ -1137,6 +1151,7 @@ help(void)
+@@ -1138,6 +1152,7 @@
  	\t-O length	TCP send buffer length\n\
  	\t-P proxyuser\tUsername for proxy authentication\n\
  	\t-p port\t	Specify local port for remote connects\n\
@@ -78,7 +76,7 @@ index 1ad4903..29af388 100644
  	\t-r		Randomize remote ports\n\
  	\t-S		Enable the TCP MD5 signature option\n\
  	\t-s addr\t	Local source address\n\
-@@ -1165,3 +1180,13 @@ usage(int ret)
+@@ -1166,3 +1181,13 @@
  	if (ret)
  		exit(1);
  }
@@ -92,4 +90,3 @@ index 1ad4903..29af388 100644
 +        /* XXX: should explicitly close fds here */
 +        exit(0);
 +}
--- 

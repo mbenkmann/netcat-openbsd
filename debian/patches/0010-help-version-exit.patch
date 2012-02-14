@@ -8,7 +8,7 @@ Subject: [PATCH] help version exit
 
 --- a/netcat.c
 +++ b/netcat.c
-@@ -1234,6 +1234,9 @@
+@@ -1235,6 +1235,9 @@
  void
  help(void)
  {
@@ -18,7 +18,7 @@ Subject: [PATCH] help version exit
  	usage(0);
  	fprintf(stderr, "\tCommand Summary:\n\
  	\t-4		Use IPv4\n\
-@@ -1265,7 +1268,7 @@
+@@ -1266,7 +1269,7 @@
  	\t-x addr[:port]\tSpecify proxy address and port\n\
  	\t-z		Zero-I/O mode [used for scanning]\n\
  	Port numbers can be individual or ranges: lo-hi [inclusive]\n");

@@ -6,11 +6,9 @@ Subject: [PATCH] poll hup
  netcat.c |   24 +++++++++++++++++-------
  1 files changed, 17 insertions(+), 7 deletions(-)
 
-diff --git a/netcat.c b/netcat.c
-index 11c0ad1..f438c23 100644
 --- a/netcat.c
 +++ b/netcat.c
-@@ -863,9 +863,7 @@ readwrite(int nfd)
+@@ -864,9 +864,7 @@
  			if ((n = read(nfd, buf, plen)) < 0)
  				return;
  			else if (n == 0) {
@@ -21,7 +19,7 @@ index 11c0ad1..f438c23 100644
  			} else {
  				if (tflag)
  					atelnet(nfd, buf, n);
-@@ -873,18 +871,30 @@ readwrite(int nfd)
+@@ -874,18 +872,30 @@
  					return;
  			}
  		}
@@ -56,4 +54,3 @@ index 11c0ad1..f438c23 100644
  		}
  	}
  }
--- 
