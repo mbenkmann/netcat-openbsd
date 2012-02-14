@@ -6,12 +6,19 @@ netcat-openbsd (1.105-1) UNRELEASED; urgency=low
     - Replace non-portable echo with printf (Closes: #510372).
   * debian/patches:
     - Rearrange existing patches, fix new porting issues.
+    - Print message when not supported combinations with
+      option -l (Closes: #540073).
     - Use libbsd instead of glib for strlcpy (Closes: #550611).
     - Fix build with -Wl,--as-needed (Closes: #604781).
+    - Handling multiple clients subsquently when -k (Closes: #514792).
     - Replace inet_ntoa with inet_ntop to support IPv6
       (Closes: #512992).
-    - Fix misc connection failures, thanks Ian Jackson
-      (Closes: #579485, #579487, #579488).
+    - Modify -q behavior to be compatible with nc.traditional
+      (Closes: #606925, #611964, #508722).
+    - DCCP support.
+    - Fix misc connection failures
+      (Closes: #579485, #579486, #579487, #579488, #633948).
+    - Improve documentations.
   * debian/rules:
     - Link nc.openbsd.1 from nc.1 (Closes: #535951).
     - Enable optional hardening build flags.
@@ -21,7 +28,7 @@ netcat-openbsd (1.105-1) UNRELEASED; urgency=low
   * debian/compat:
     - Update to 8 from 4.
 
- -- Aron Xu <aron@debian.org>  Mon, 13 Feb 2012 19:52:02 +0800
+ -- Aron Xu <aron@debian.org>  Wed, 15 Feb 2012 01:39:04 +0800
 
 netcat-openbsd (1.89-4) unstable; urgency=low
 
