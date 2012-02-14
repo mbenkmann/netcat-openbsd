@@ -17,7 +17,7 @@ Subject: [PATCH] misc connection failures
  	char *proxy = NULL;
  	const char *errstr, *proxyhost = "", *proxyport = NULL;
  	struct addrinfo proxyhints;
-@@ -491,6 +491,8 @@
+@@ -501,6 +501,8 @@
  
  			if (!kflag)
  				break;
@@ -26,7 +26,7 @@ Subject: [PATCH] misc connection failures
  		}
  	} else if (family == AF_UNIX) {
  		ret = 0;
-@@ -587,6 +589,8 @@
+@@ -597,6 +599,8 @@
  		return (-1);
  	}
  
@@ -35,7 +35,7 @@ Subject: [PATCH] misc connection failures
  	if (bind(s, (struct sockaddr *)&sun, SUN_LEN(&sun)) < 0) {
  		close(s);
  		return (-1);
-@@ -608,8 +612,10 @@
+@@ -618,8 +622,10 @@
  		if ((s = unix_bind(unix_dg_tmp_socket)) < 0)
  			return (-1);
  	} else {
@@ -47,7 +47,7 @@ Subject: [PATCH] misc connection failures
  	}
  	(void)fcntl(s, F_SETFD, 1);
  
-@@ -620,9 +626,11 @@
+@@ -630,9 +636,11 @@
  	    sizeof(sun.sun_path)) {
  		close(s);
  		errno = ENAMETOOLONG;
