@@ -6,9 +6,11 @@ Subject: [PATCH] help version exit
  netcat.c |    5 ++++-
  1 files changed, 4 insertions(+), 1 deletions(-)
 
+diff --git a/netcat.c b/netcat.c
+index 0bd264d..75520d3 100644
 --- a/netcat.c
 +++ b/netcat.c
-@@ -1236,6 +1236,9 @@
+@@ -1236,6 +1236,9 @@ map_tos(char *s, int *val)
  void
  help(void)
  {
@@ -18,7 +20,7 @@ Subject: [PATCH] help version exit
  	usage(0);
  	fprintf(stderr, "\tCommand Summary:\n\
  	\t-4		Use IPv4\n\
-@@ -1267,7 +1270,7 @@
+@@ -1267,7 +1270,7 @@ help(void)
  	\t-x addr[:port]\tSpecify proxy address and port\n\
  	\t-z		Zero-I/O mode [used for scanning]\n\
  	Port numbers can be individual or ranges: lo-hi [inclusive]\n");
@@ -27,3 +29,4 @@ Subject: [PATCH] help version exit
  }
  
  void
+-- 

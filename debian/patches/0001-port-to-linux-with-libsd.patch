@@ -3,11 +3,14 @@ Date: Mon, 13 Feb 2012 15:59:31 +0800
 Subject: [PATCH] port to linux with libsd
 
 ---
- Makefile |   17 +++++++++--------
- netcat.c |   57 ++++++++++++++++++++++++++++++++++++++++++++++++++++++---
- socks.c  |   48 ++++++++++++++++++++++++++----------------------
- 3 files changed, 89 insertions(+), 33 deletions(-)
+ Makefile   |   24 ++++++++++++++++---
+ atomicio.c |    2 +
+ netcat.c   |   75 +++++++++++++++++++++++++++++++++++++++++++++++++++--------
+ socks.c    |   48 ++++++++++++++++++++------------------
+ 4 files changed, 111 insertions(+), 38 deletions(-)
 
+diff --git a/Makefile b/Makefile
+index 150f829..0b46ee2 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -1,6 +1,22 @@
@@ -37,6 +40,21 @@ Subject: [PATCH] port to linux with libsd
 +
 +clean:
 +	rm -f $(OBJS) nc
+diff --git a/atomicio.c b/atomicio.c
+index feb6f19..e51d594 100644
+--- a/atomicio.c
++++ b/atomicio.c
+@@ -31,6 +31,8 @@
+ #include <errno.h>
+ #include <poll.h>
+ #include <unistd.h>
++#include <bsd/bsd.h>
++#include <bsd/unistd.h>
+ 
+ #include "atomicio.h"
+ 
+diff --git a/netcat.c b/netcat.c
+index cc4683a..5129ae6 100644
 --- a/netcat.c
 +++ b/netcat.c
 @@ -41,6 +41,35 @@
@@ -84,7 +102,7 @@ Subject: [PATCH] port to linux with libsd
  #include "atomicio.h"
  
  #ifndef SUN_LEN
-@@ -118,7 +149,7 @@
+@@ -118,7 +149,7 @@ main(int argc, char *argv[])
  	struct servent *sv;
  	socklen_t len;
  	struct sockaddr_storage cliaddr;
@@ -93,7 +111,7 @@ Subject: [PATCH] port to linux with libsd
  	const char *errstr, *proxyhost = "", *proxyport = NULL;
  	struct addrinfo proxyhints;
  	char unix_dg_tmp_socket_buf[UNIX_DG_TMP_SOCKET_SIZE];
-@@ -163,9 +194,11 @@
+@@ -163,9 +194,11 @@ main(int argc, char *argv[])
  			if (errstr)
  				errx(1, "interval %s: %s", errstr, optarg);
  			break;
@@ -105,7 +123,7 @@ Subject: [PATCH] port to linux with libsd
  		case 'k':
  			kflag = 1;
  			break;
-@@ -193,12 +226,14 @@
+@@ -193,12 +226,14 @@ main(int argc, char *argv[])
  		case 'u':
  			uflag = 1;
  			break;
@@ -120,7 +138,7 @@ Subject: [PATCH] port to linux with libsd
  		case 'v':
  			vflag = 1;
  			break;
-@@ -259,6 +294,15 @@
+@@ -259,6 +294,15 @@ main(int argc, char *argv[])
  	if (argv[0] && !argv[1] && family == AF_UNIX) {
  		host = argv[0];
  		uport = NULL;
@@ -136,7 +154,7 @@ Subject: [PATCH] port to linux with libsd
  	} else if (argv[0] && !argv[1]) {
  		if  (!lflag)
  			usage(1);
-@@ -270,14 +314,7 @@
+@@ -270,14 +314,7 @@ main(int argc, char *argv[])
  	} else
  		usage(1);
  
@@ -152,7 +170,7 @@ Subject: [PATCH] port to linux with libsd
  
  	/* Get name of temporary socket for unix datagram client */
  	if ((family == AF_UNIX) && uflag && !lflag) {
-@@ -286,8 +323,8 @@
+@@ -286,8 +323,8 @@ main(int argc, char *argv[])
  		} else {
  			strlcpy(unix_dg_tmp_socket_buf, "/tmp/nc.XXXXXXXXXX",
  				UNIX_DG_TMP_SOCKET_SIZE);
@@ -163,7 +181,7 @@ Subject: [PATCH] port to linux with libsd
  			unix_dg_tmp_socket = unix_dg_tmp_socket_buf;
  		}
  	}
-@@ -563,18 +600,22 @@
+@@ -563,18 +600,22 @@ remote_connect(const char *host, const char *port, struct addrinfo hints)
  		    res0->ai_protocol)) < 0)
  			continue;
  
@@ -186,7 +204,7 @@ Subject: [PATCH] port to linux with libsd
  			memset(&ahints, 0, sizeof(struct addrinfo));
  			ahints.ai_family = res0->ai_family;
  			ahints.ai_socktype = uflag ? SOCK_DGRAM : SOCK_STREAM;
-@@ -674,15 +715,23 @@
+@@ -674,15 +715,23 @@ local_listen(char *host, char *port, struct addrinfo hints)
  		    res0->ai_protocol)) < 0)
  			continue;
  
@@ -210,7 +228,7 @@ Subject: [PATCH] port to linux with libsd
  
  		set_common_sockopts(s);
  
-@@ -886,21 +935,25 @@
+@@ -886,21 +935,25 @@ set_common_sockopts(int s)
  {
  	int x = 1;
  
@@ -236,6 +254,8 @@ Subject: [PATCH] port to linux with libsd
  	if (Tflag != -1) {
  		if (setsockopt(s, IPPROTO_IP, IP_TOS,
  		    &Tflag, sizeof(Tflag)) == -1)
+diff --git a/socks.c b/socks.c
+index 71108d5..2013849 100644
 --- a/socks.c
 +++ b/socks.c
 @@ -38,7 +38,9 @@
@@ -249,7 +269,7 @@ Subject: [PATCH] port to linux with libsd
  #include "atomicio.h"
  
  #define SOCKS_PORT	"1080"
-@@ -167,11 +169,11 @@
+@@ -167,11 +169,11 @@ socks_connect(const char *host, const char *port,
  		buf[2] = SOCKS_NOAUTH;
  		cnt = atomicio(vwrite, proxyfd, buf, 3);
  		if (cnt != 3)
@@ -263,7 +283,7 @@ Subject: [PATCH] port to linux with libsd
  
  		if (buf[1] == SOCKS_NOMETHOD)
  			errx(1, "authentication method negotiation failed");
-@@ -220,23 +222,23 @@
+@@ -220,23 +222,23 @@ socks_connect(const char *host, const char *port,
  
  		cnt = atomicio(vwrite, proxyfd, buf, wlen);
  		if (cnt != wlen)
@@ -291,7 +311,7 @@ Subject: [PATCH] port to linux with libsd
  			break;
  		default:
  			errx(1, "connection failed, unsupported address type");
-@@ -256,11 +258,11 @@
+@@ -256,11 +258,11 @@ socks_connect(const char *host, const char *port,
  
  		cnt = atomicio(vwrite, proxyfd, buf, wlen);
  		if (cnt != wlen)
@@ -305,7 +325,7 @@ Subject: [PATCH] port to linux with libsd
  		if (buf[1] != 90)
  			errx(1, "connection failed, SOCKS error %d", buf[1]);
  	} else if (socksv == -1) {
-@@ -272,39 +274,39 @@
+@@ -272,39 +274,39 @@ socks_connect(const char *host, const char *port,
  
  		/* Try to be sane about numeric IPv6 addresses */
  		if (strchr(host, ':') != NULL) {
@@ -354,7 +374,7 @@ Subject: [PATCH] port to linux with libsd
  		}
  
  		/* Terminate headers */
-@@ -312,22 +314,22 @@
+@@ -312,22 +314,22 @@ socks_connect(const char *host, const char *port,
  			err(1, "write failed (2/%d)", r);
  
  		/* Read status reply */
@@ -382,14 +402,4 @@ Subject: [PATCH] port to linux with libsd
  			if (*buf == '\0')
  				break;
  		}
---- a/atomicio.c
-+++ b/atomicio.c
-@@ -31,6 +31,8 @@
- #include <errno.h>
- #include <poll.h>
- #include <unistd.h>
-+#include <bsd/bsd.h>
-+#include <bsd/unistd.h>
- 
- #include "atomicio.h"
- 
+-- 

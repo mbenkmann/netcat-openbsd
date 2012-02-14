@@ -1,0 +1,47 @@
+From: Aron Xu <aron@debian.org>
+Date: Tue, 14 Feb 2012 23:02:00 +0800
+Subject: [PATCH] serialized handling multiple clients
+
+---
+ netcat.c |   13 ++++++-------
+ 1 files changed, 6 insertions(+), 7 deletions(-)
+
+--- a/netcat.c
++++ b/netcat.c
+@@ -420,14 +420,13 @@
+ 				s = unix_bind(host);
+ 			else
+ 				s = unix_listen(host);
+-		}
++		} else
++			s = local_listen(host, uport, hints);
++		if (s < 0)
++			err(1, NULL);
+ 
+ 		/* Allow only one connection at a time, but stay alive. */
+ 		for (;;) {
+-			if (family != AF_UNIX)
+-				s = local_listen(host, uport, hints);
+-			if (s < 0)
+-				err(1, NULL);
+ 			/*
+ 			 * For UDP, we will use recvfrom() initially
+ 			 * to wait for a caller, then use the regular
+@@ -494,6 +493,8 @@
+ 				close(connfd);
+ 			}
+ 
++			if (kflag)
++				continue;
+ 			if (family != AF_UNIX)
+ 				close(s);
+ 			else if (uflag) {
+@@ -501,8 +502,6 @@
+ 					err(1, "connect");
+ 			}
+ 
+-			if (!kflag)
+-				break;
+ 		}
+ 	} else if (family == AF_UNIX) {
+ 		ret = 0;

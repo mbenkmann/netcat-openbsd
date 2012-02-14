@@ -3,9 +3,11 @@ Date: Mon, 13 Feb 2012 15:38:15 +0800
 Subject: [PATCH] verbose numeric port
 
 ---
- netcat.c |   23 +++++++++++++++++++----
- 1 files changed, 19 insertions(+), 4 deletions(-)
+ netcat.c |   44 ++++++++++++++++++++++++++++++++++++++++----
+ 1 files changed, 40 insertions(+), 4 deletions(-)
 
+diff --git a/netcat.c b/netcat.c
+index c9d1a81..d7744ca 100644
 --- a/netcat.c
 +++ b/netcat.c
 @@ -41,6 +41,7 @@
@@ -16,7 +18,7 @@ Subject: [PATCH] verbose numeric port
  # ifndef IPTOS_DSCP_AF11
  # define	IPTOS_DSCP_AF11		0x28
  # define	IPTOS_DSCP_AF12		0x30
-@@ -413,16 +414,15 @@
+@@ -413,16 +414,15 @@ main(int argc, char *argv[])
  			if (uflag) {
  				int rv, plen;
  				char buf[16384];
@@ -36,7 +38,7 @@ Subject: [PATCH] verbose numeric port
  				if (rv < 0)
  					err(1, "connect");
  
-@@ -431,6 +431,42 @@
+@@ -431,6 +431,42 @@ main(int argc, char *argv[])
  				len = sizeof(cliaddr);
  				connfd = accept(s, (struct sockaddr *)&cliaddr,
  				    &len);
@@ -79,3 +81,4 @@ Subject: [PATCH] verbose numeric port
  				readwrite(connfd);
  				close(connfd);
  			}
+-- 

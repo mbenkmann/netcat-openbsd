@@ -3,8 +3,8 @@ Date: Mon, 13 Feb 2012 19:06:52 +0800
 Subject: [PATCH] misc connection failures
 
 ---
- netcat.c |   21 ++++++++++++++++++---
- 1 files changed, 18 insertions(+), 3 deletions(-)
+ netcat.c |   22 +++++++++++++++++++---
+ 1 files changed, 19 insertions(+), 3 deletions(-)
 
 --- a/netcat.c
 +++ b/netcat.c
@@ -28,7 +28,7 @@ Subject: [PATCH] misc connection failures
  	char *proxy = NULL;
  	const char *errstr, *proxyhost = "", *proxyport = NULL;
  	struct addrinfo proxyhints;
-@@ -453,7 +457,11 @@
+@@ -452,7 +456,11 @@
  				len = sizeof(cliaddr);
  				connfd = accept(s, (struct sockaddr *)&cliaddr,
  				    &len);
@@ -41,16 +41,17 @@ Subject: [PATCH] misc connection failures
  					char *proto = proto_name(uflag, dccpflag);
  				/* Don't look up port if -n. */
  					if (nflag)
-@@ -503,6 +511,8 @@
- 
- 			if (!kflag)
- 				break;
+@@ -501,7 +509,8 @@
+ 				if (connect(s, NULL, 0) < 0)
+ 					err(1, "connect");
+ 			}
+-
 +                        if (vflag)
 +                                fprintf(stderr, "Connection closed, listening again.\n");
  		}
  	} else if (family == AF_UNIX) {
  		ret = 0;
-@@ -599,6 +609,8 @@
+@@ -598,6 +607,8 @@
  		return (-1);
  	}
  
@@ -59,7 +60,7 @@ Subject: [PATCH] misc connection failures
  	if (bind(s, (struct sockaddr *)&sun, SUN_LEN(&sun)) < 0) {
  		close(s);
  		return (-1);
-@@ -620,8 +632,10 @@
+@@ -619,8 +630,10 @@
  		if ((s = unix_bind(unix_dg_tmp_socket)) < 0)
  			return (-1);
  	} else {
@@ -71,7 +72,7 @@ Subject: [PATCH] misc connection failures
  	}
  	(void)fcntl(s, F_SETFD, 1);
  
-@@ -632,9 +646,11 @@
+@@ -631,9 +644,11 @@
  	    sizeof(sun.sun_path)) {
  		close(s);
  		errno = ENAMETOOLONG;
