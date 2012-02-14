@@ -41,13 +41,20 @@ Subject: [PATCH] misc connection failures
  					char *proto = proto_name(uflag, dccpflag);
  				/* Don't look up port if -n. */
  					if (nflag)
-@@ -501,7 +509,8 @@
+@@ -493,6 +501,8 @@
+ 				close(connfd);
+ 			}
+ 
++			if (vflag)
++                                fprintf(stderr, "Connection closed, listening again.\n");
+ 			if (kflag)
+ 				continue;
+ 			if (family != AF_UNIX)
+@@ -501,7 +511,6 @@
  				if (connect(s, NULL, 0) < 0)
  					err(1, "connect");
  			}
 -
-+                        if (vflag)
-+                                fprintf(stderr, "Connection closed, listening again.\n");
  		}
  	} else if (family == AF_UNIX) {
  		ret = 0;
