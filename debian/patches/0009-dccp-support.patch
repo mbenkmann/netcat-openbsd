@@ -110,7 +110,7 @@ Subject: [PATCH] dccp support
  							((struct sockaddr *)(&cliaddr))->sa_family);
  					}
  					else {
- 						fprintf(stderr, "Connection from port %s [%s/%s] accepted (protocal family %d)\n",
+ 						fprintf(stderr, "Connection from unknown port %s [%s/%s] accepted (protocal family %d)\n",
  							uport,
 -							uflag ? "udp" : "tcp",
 +							proto,
