@@ -131,7 +131,7 @@ Subject: [PATCH] port to linux with libsd
 +			errx(1, "cannot use -p and -l");
 +		if (zflag)
 +			errx(1, "cannot use -z and -l");
-+	} if (!lflag && kflag) {
++	} else if (!lflag && kflag) {
 +		errx(1, "must use -l with -k");
  	} else if (argv[0] && !argv[1]) {
  		if  (!lflag)
