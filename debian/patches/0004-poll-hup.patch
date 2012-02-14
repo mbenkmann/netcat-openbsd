@@ -8,7 +8,7 @@ Subject: [PATCH] poll hup
 
 --- a/netcat.c
 +++ b/netcat.c
-@@ -864,9 +864,7 @@
+@@ -865,9 +865,7 @@
  			if ((n = read(nfd, buf, plen)) < 0)
  				return;
  			else if (n == 0) {
@@ -19,7 +19,7 @@ Subject: [PATCH] poll hup
  			} else {
  				if (tflag)
  					atelnet(nfd, buf, n);
-@@ -874,18 +872,30 @@
+@@ -875,18 +873,30 @@
  					return;
  			}
  		}

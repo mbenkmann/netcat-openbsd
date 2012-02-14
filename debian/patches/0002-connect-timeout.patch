@@ -29,7 +29,7 @@ Subject: [PATCH] connect timeout
  int
  main(int argc, char *argv[])
  {
-@@ -631,11 +638,14 @@
+@@ -632,11 +639,14 @@
  
  		set_common_sockopts(s);
  
@@ -46,7 +46,7 @@ Subject: [PATCH] connect timeout
  
  		close(s);
  		s = -1;
-@@ -683,6 +693,69 @@
+@@ -684,6 +694,69 @@
  	return (ret);
  }
  

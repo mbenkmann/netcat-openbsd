@@ -54,7 +54,7 @@ Subject: [PATCH] dccp support
  		host = argv[0];
  		uport = NULL;
  	} else if (!argv[0] && lflag) {
-@@ -354,8 +363,18 @@
+@@ -355,8 +364,18 @@
  	if (family != AF_UNIX) {
  		memset(&hints, 0, sizeof(struct addrinfo));
  		hints.ai_family = family;
@@ -75,7 +75,7 @@ Subject: [PATCH] dccp support
  		if (nflag)
  			hints.ai_flags |= AI_NUMERICHOST;
  	}
-@@ -364,6 +383,9 @@
+@@ -365,6 +384,9 @@
  		if (uflag)
  			errx(1, "no proxy support for UDP mode");
  
@@ -85,7 +85,7 @@ Subject: [PATCH] dccp support
  		if (lflag)
  			errx(1, "no proxy support for listen");
  
-@@ -431,12 +453,13 @@
+@@ -432,12 +454,13 @@
  				connfd = accept(s, (struct sockaddr *)&cliaddr,
  				    &len);
  				if(vflag) {
@@ -100,7 +100,7 @@ Subject: [PATCH] dccp support
  
  					if (((struct sockaddr *)&cliaddr)->sa_family == AF_INET) {
  						char dst[INET_ADDRSTRLEN];
-@@ -444,7 +467,7 @@
+@@ -445,7 +468,7 @@
  						fprintf(stderr, "Connection from %s port %s [%s/%s] accepted (protocal family %d)\n",
  							dst,
  							uport,
@@ -109,7 +109,7 @@ Subject: [PATCH] dccp support
  							sv ? sv->s_name : "*",
  							((struct sockaddr *)(&cliaddr))->sa_family);
  					}
-@@ -454,14 +477,14 @@
+@@ -455,14 +478,14 @@
  						fprintf(stderr, "Connection from %s port %s [%s/%s] accepted (protocal family %d)\n",
  							dst,
  							uport,
@@ -126,7 +126,7 @@ Subject: [PATCH] dccp support
  							sv ? sv->s_name : "*",
  							((struct sockaddr *)(&cliaddr))->sa_family);
  					}
-@@ -636,6 +659,22 @@
+@@ -637,6 +660,22 @@
  	return (s);
  }
  
@@ -149,7 +149,7 @@ Subject: [PATCH] dccp support
  /*
   * remote_connect()
   * Returns a socket connected to a remote host. Properly binds to a local
-@@ -674,8 +713,19 @@
+@@ -675,8 +714,19 @@
  # endif
  			memset(&ahints, 0, sizeof(struct addrinfo));
  			ahints.ai_family = res0->ai_family;
@@ -171,7 +171,7 @@ Subject: [PATCH] dccp support
  			ahints.ai_flags = AI_PASSIVE;
  			if ((error = getaddrinfo(sflag, pflag, &ahints, &ares)))
  				errx(1, "getaddrinfo: %s", gai_strerror(error));
-@@ -687,15 +737,19 @@
+@@ -688,15 +738,19 @@
  		}
  
  		set_common_sockopts(s);
@@ -196,7 +196,7 @@ Subject: [PATCH] dccp support
  
  		close(s);
  		s = -1;
-@@ -1009,7 +1063,8 @@
+@@ -1010,7 +1064,8 @@
  	int hi, lo, cp;
  	int x = 0;
  
@@ -206,7 +206,7 @@ Subject: [PATCH] dccp support
          if (sv) {
                  portlist[0] = calloc(1, PORT_MAX_LEN);
                  if (portlist[0] == NULL)
-@@ -1203,6 +1258,7 @@
+@@ -1204,6 +1259,7 @@
  	\t-t		Answer TELNET negotiation\n\
  	\t-U		Use UNIX domain socket\n\
  	\t-u		UDP mode\n\

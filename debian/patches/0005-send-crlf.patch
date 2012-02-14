@@ -67,7 +67,7 @@ Subject: [PATCH] send crlf
  		default:
  			usage(1);
  		}
-@@ -886,8 +890,16 @@
+@@ -887,8 +891,16 @@
  			else if (n == 0) {
  				goto shutdown_wr;
  			} else {

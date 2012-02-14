@@ -53,7 +53,7 @@ Subject: [PATCH] quit timer
  		case 'r':
  			rflag = 1;
  			break;
-@@ -904,7 +912,13 @@
+@@ -905,7 +913,13 @@
  			}
  			else if (pfd[1].revents & POLLHUP) {
  			shutdown_wr:
@@ -68,7 +68,7 @@ Subject: [PATCH] quit timer
  				pfd[1].fd = -1;
  				pfd[1].events = 0;
  			}
-@@ -1138,6 +1152,7 @@
+@@ -1139,6 +1153,7 @@
  	\t-O length	TCP send buffer length\n\
  	\t-P proxyuser\tUsername for proxy authentication\n\
  	\t-p port\t	Specify local port for remote connects\n\
@@ -76,7 +76,7 @@ Subject: [PATCH] quit timer
  	\t-r		Randomize remote ports\n\
  	\t-S		Enable the TCP MD5 signature option\n\
  	\t-s addr\t	Local source address\n\
-@@ -1166,3 +1181,13 @@
+@@ -1167,3 +1182,13 @@
  	if (ret)
  		exit(1);
  }
