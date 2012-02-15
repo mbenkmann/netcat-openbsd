@@ -10,7 +10,7 @@ For record, the reason of not implementing features like -c or -e in this
 cat is about security. These options enable anyone on the system to open
 port and execute arbitrary command on local host from remote very easily,
 which is not desired for ordinary multi-user systems. If you do need such
-fuction, please try nc.traditional or nc6.
+function, please try nc.traditional or nc6.
 
  -- Aron Xu <aron@debian.org>  Wed, 15 Feb 2012 01:39:04 +0800
 
