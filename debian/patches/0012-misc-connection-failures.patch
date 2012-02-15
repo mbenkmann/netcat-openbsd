@@ -45,20 +45,12 @@ Subject: [PATCH] misc connection failures
  				close(connfd);
  			}
  
-+			if (vflag)
++			if (vflag && kflag)
 +                                fprintf(stderr, "Connection closed, listening again.\n");
  			if (kflag)
  				continue;
  			if (family != AF_UNIX) {
-@@ -503,7 +513,6 @@
- 				if (connect(s, NULL, 0) < 0)
- 					err(1, "connect");
- 			}
--
- 		}
- 	} else if (family == AF_UNIX) {
- 		ret = 0;
-@@ -600,6 +609,8 @@
+@@ -599,6 +609,8 @@
  		return (-1);
  	}
  
@@ -67,7 +59,7 @@ Subject: [PATCH] misc connection failures
  	if (bind(s, (struct sockaddr *)&sun, SUN_LEN(&sun)) < 0) {
  		close(s);
  		return (-1);
-@@ -621,8 +632,10 @@
+@@ -620,8 +632,10 @@
  		if ((s = unix_bind(unix_dg_tmp_socket)) < 0)
  			return (-1);
  	} else {
@@ -79,7 +71,7 @@ Subject: [PATCH] misc connection failures
  	}
  	(void)fcntl(s, F_SETFD, 1);
  
-@@ -633,9 +646,11 @@
+@@ -632,9 +646,11 @@
  	    sizeof(sun.sun_path)) {
  		close(s);
  		errno = ENAMETOOLONG;

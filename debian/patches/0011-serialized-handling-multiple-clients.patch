@@ -27,7 +27,7 @@ Subject: [PATCH] serialized handling multiple clients
  			/*
  			 * For UDP, we will use recvfrom() initially
  			 * to wait for a caller, then use the regular
-@@ -494,15 +493,17 @@
+@@ -494,15 +493,16 @@
  				close(connfd);
  			}
  
@@ -36,15 +36,15 @@ Subject: [PATCH] serialized handling multiple clients
 +				continue;
 +			if (family != AF_UNIX) {
  				close(s);
-+				break;
 +			}
  			else if (uflag) {
  				if (connect(s, NULL, 0) < 0)
  					err(1, "connect");
  			}
- 
+-
 -			if (!kflag)
 -				break;
++			break;
  		}
  	} else if (family == AF_UNIX) {
  		ret = 0;
