@@ -14,7 +14,7 @@ netcat-openbsd (1.105-1) UNRELEASED; urgency=low
     - Replace inet_ntoa with inet_ntop to support IPv6
       (Closes: #512992).
     - Modify -q behavior to be compatible with nc.traditional
-      (Closes: #606925, #611964, #508722).
+      (Closes: #508722, #594614, #606925, #611964).
     - DCCP support.
     - Fix misc connection failures
       (Closes: #579485, #579486, #579487, #579488, #633948).
