@@ -50,8 +50,8 @@ Subject: [PATCH] send crlf
  	sv = NULL;
  
  	while ((ch = getopt(argc, argv,
--	    "46DdhI:i:jklnO:P:p:rSs:tT:UuV:vw:X:x:z")) != -1) {
-+	    "46CDdhI:i:jklnO:P:p:rSs:tT:UuV:vw:X:x:z")) != -1) {
+-	    "46DdhI:i:klnO:P:p:rSs:tT:UuV:vw:X:x:z")) != -1) {
++	    "46CDdhI:i:klnO:P:p:rSs:tT:UuV:vw:X:x:z")) != -1) {
  		switch (ch) {
  		case '4':
  			family = AF_INET;

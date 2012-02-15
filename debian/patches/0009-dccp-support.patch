@@ -28,8 +28,8 @@ Subject: [PATCH] dccp support
  	sv = NULL;
  
  	while ((ch = getopt(argc, argv,
--	    "46CDdhI:i:jklnO:P:p:q:rSs:tT:UuV:vw:X:x:z")) != -1) {
-+	    "46CDdhI:i:jklnO:P:p:q:rSs:tT:UuVZ:vw:X:x:z")) != -1) {
+-	    "46CDdhI:i:klnO:P:p:q:rSs:tT:UuV:vw:X:x:z")) != -1) {
++	    "46CDdhI:i:klnO:P:p:q:rSs:tT:UuV:vw:X:x:Zz")) != -1) {
  		switch (ch) {
  		case '4':
  			family = AF_INET;

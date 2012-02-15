@@ -9,8 +9,6 @@ Subject: [PATCH] port to linux with libsd
  socks.c    |   48 ++++++++++++++++++++------------------
  4 files changed, 111 insertions(+), 38 deletions(-)
 
-diff --git a/Makefile b/Makefile
-index 150f829..0b46ee2 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -1,6 +1,22 @@
@@ -40,8 +38,6 @@ index 150f829..0b46ee2 100644
 +
 +clean:
 +	rm -f $(OBJS) nc
-diff --git a/atomicio.c b/atomicio.c
-index feb6f19..e51d594 100644
 --- a/atomicio.c
 +++ b/atomicio.c
 @@ -31,6 +31,8 @@
@@ -53,8 +49,6 @@ index feb6f19..e51d594 100644
  
  #include "atomicio.h"
  
-diff --git a/netcat.c b/netcat.c
-index cc4683a..5129ae6 100644
 --- a/netcat.c
 +++ b/netcat.c
 @@ -41,6 +41,35 @@
@@ -102,7 +96,7 @@ index cc4683a..5129ae6 100644
  #include "atomicio.h"
  
  #ifndef SUN_LEN
-@@ -118,7 +149,7 @@ main(int argc, char *argv[])
+@@ -118,7 +149,7 @@
  	struct servent *sv;
  	socklen_t len;
  	struct sockaddr_storage cliaddr;
@@ -111,7 +105,16 @@ index cc4683a..5129ae6 100644
  	const char *errstr, *proxyhost = "", *proxyport = NULL;
  	struct addrinfo proxyhints;
  	char unix_dg_tmp_socket_buf[UNIX_DG_TMP_SOCKET_SIZE];
-@@ -163,9 +194,11 @@ main(int argc, char *argv[])
+@@ -131,7 +162,7 @@
+ 	sv = NULL;
+ 
+ 	while ((ch = getopt(argc, argv,
+-	    "46DdhI:i:jklnO:P:p:rSs:tT:UuV:vw:X:x:z")) != -1) {
++	    "46DdhI:i:klnO:P:p:rSs:tT:UuV:vw:X:x:z")) != -1) {
+ 		switch (ch) {
+ 		case '4':
+ 			family = AF_INET;
+@@ -163,9 +194,11 @@
  			if (errstr)
  				errx(1, "interval %s: %s", errstr, optarg);
  			break;
@@ -123,7 +126,7 @@ index cc4683a..5129ae6 100644
  		case 'k':
  			kflag = 1;
  			break;
-@@ -193,12 +226,14 @@ main(int argc, char *argv[])
+@@ -193,12 +226,14 @@
  		case 'u':
  			uflag = 1;
  			break;
@@ -138,7 +141,7 @@ index cc4683a..5129ae6 100644
  		case 'v':
  			vflag = 1;
  			break;
-@@ -259,6 +294,15 @@ main(int argc, char *argv[])
+@@ -259,6 +294,15 @@
  	if (argv[0] && !argv[1] && family == AF_UNIX) {
  		host = argv[0];
  		uport = NULL;
@@ -154,7 +157,7 @@ index cc4683a..5129ae6 100644
  	} else if (argv[0] && !argv[1]) {
  		if  (!lflag)
  			usage(1);
-@@ -270,14 +314,7 @@ main(int argc, char *argv[])
+@@ -270,14 +314,7 @@
  	} else
  		usage(1);
  
@@ -170,7 +173,7 @@ index cc4683a..5129ae6 100644
  
  	/* Get name of temporary socket for unix datagram client */
  	if ((family == AF_UNIX) && uflag && !lflag) {
-@@ -286,8 +323,8 @@ main(int argc, char *argv[])
+@@ -286,8 +323,8 @@
  		} else {
  			strlcpy(unix_dg_tmp_socket_buf, "/tmp/nc.XXXXXXXXXX",
  				UNIX_DG_TMP_SOCKET_SIZE);
@@ -181,7 +184,7 @@ index cc4683a..5129ae6 100644
  			unix_dg_tmp_socket = unix_dg_tmp_socket_buf;
  		}
  	}
-@@ -563,18 +600,22 @@ remote_connect(const char *host, const char *port, struct addrinfo hints)
+@@ -563,18 +600,22 @@
  		    res0->ai_protocol)) < 0)
  			continue;
  
@@ -204,7 +207,7 @@ index cc4683a..5129ae6 100644
  			memset(&ahints, 0, sizeof(struct addrinfo));
  			ahints.ai_family = res0->ai_family;
  			ahints.ai_socktype = uflag ? SOCK_DGRAM : SOCK_STREAM;
-@@ -674,15 +715,23 @@ local_listen(char *host, char *port, struct addrinfo hints)
+@@ -674,15 +715,23 @@
  		    res0->ai_protocol)) < 0)
  			continue;
  
@@ -228,7 +231,7 @@ index cc4683a..5129ae6 100644
  
  		set_common_sockopts(s);
  
-@@ -886,21 +935,25 @@ set_common_sockopts(int s)
+@@ -886,21 +935,25 @@
  {
  	int x = 1;
  
@@ -254,8 +257,6 @@ index cc4683a..5129ae6 100644
  	if (Tflag != -1) {
  		if (setsockopt(s, IPPROTO_IP, IP_TOS,
  		    &Tflag, sizeof(Tflag)) == -1)
-diff --git a/socks.c b/socks.c
-index 71108d5..2013849 100644
 --- a/socks.c
 +++ b/socks.c
 @@ -38,7 +38,9 @@
@@ -269,7 +270,7 @@ index 71108d5..2013849 100644
  #include "atomicio.h"
  
  #define SOCKS_PORT	"1080"
-@@ -167,11 +169,11 @@ socks_connect(const char *host, const char *port,
+@@ -167,11 +169,11 @@
  		buf[2] = SOCKS_NOAUTH;
  		cnt = atomicio(vwrite, proxyfd, buf, 3);
  		if (cnt != 3)
@@ -283,7 +284,7 @@ index 71108d5..2013849 100644
  
  		if (buf[1] == SOCKS_NOMETHOD)
  			errx(1, "authentication method negotiation failed");
-@@ -220,23 +222,23 @@ socks_connect(const char *host, const char *port,
+@@ -220,23 +222,23 @@
  
  		cnt = atomicio(vwrite, proxyfd, buf, wlen);
  		if (cnt != wlen)
@@ -311,7 +312,7 @@ index 71108d5..2013849 100644
  			break;
  		default:
  			errx(1, "connection failed, unsupported address type");
-@@ -256,11 +258,11 @@ socks_connect(const char *host, const char *port,
+@@ -256,11 +258,11 @@
  
  		cnt = atomicio(vwrite, proxyfd, buf, wlen);
  		if (cnt != wlen)
@@ -325,7 +326,7 @@ index 71108d5..2013849 100644
  		if (buf[1] != 90)
  			errx(1, "connection failed, SOCKS error %d", buf[1]);
  	} else if (socksv == -1) {
-@@ -272,39 +274,39 @@ socks_connect(const char *host, const char *port,
+@@ -272,39 +274,39 @@
  
  		/* Try to be sane about numeric IPv6 addresses */
  		if (strchr(host, ':') != NULL) {
@@ -374,7 +375,7 @@ index 71108d5..2013849 100644
  		}
  
  		/* Terminate headers */
-@@ -312,22 +314,22 @@ socks_connect(const char *host, const char *port,
+@@ -312,22 +314,22 @@
  			err(1, "write failed (2/%d)", r);
  
  		/* Read status reply */
@@ -402,4 +403,3 @@ index 71108d5..2013849 100644
  			if (*buf == '\0')
  				break;
  		}
--- 
