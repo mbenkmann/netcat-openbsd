@@ -50,12 +50,12 @@ Subject: [PATCH] send crlf
  	sv = NULL;
  
  	while ((ch = getopt(argc, argv,
--	    "46DdhI:i:klnO:P:p:rSs:tT:UuV:vw:X:x:z")) != -1) {
-+	    "46CDdhI:i:klnO:P:p:rSs:tT:UuV:vw:X:x:z")) != -1) {
+-	    "46DdhI:i:jklnO:P:p:rSs:tT:UuV:vw:X:x:z")) != -1) {
++	    "46CDdhI:i:jklnO:P:p:rSs:tT:UuV:vw:X:x:z")) != -1) {
  		switch (ch) {
  		case '4':
  			family = AF_INET;
-@@ -290,6 +291,9 @@
+@@ -294,6 +295,9 @@
  			if (Tflag < 0 || Tflag > 255 || errstr || errno)
  				errx(1, "illegal tos value %s", optarg);
  			break;
@@ -65,7 +65,7 @@ Subject: [PATCH] send crlf
  		default:
  			usage(1);
  		}
-@@ -887,8 +891,16 @@
+@@ -891,8 +895,16 @@
  			else if (n == 0) {
  				goto shutdown_wr;
  			} else {
@@ -84,7 +84,7 @@ Subject: [PATCH] send crlf
  			}
  			}
  			else if (pfd[1].revents & POLLHUP) {
-@@ -1116,6 +1128,7 @@
+@@ -1120,6 +1132,7 @@
  	fprintf(stderr, "\tCommand Summary:\n\
  	\t-4		Use IPv4\n\
  	\t-6		Use IPv6\n\
@@ -92,16 +92,12 @@ Subject: [PATCH] send crlf
  	\t-D		Enable the debug socket option\n\
  	\t-d		Detach from stdin\n\
  	\t-h		This help text\n\
-@@ -1148,9 +1161,9 @@
+@@ -1153,7 +1166,7 @@
  usage(int ret)
  {
  	fprintf(stderr,
--	    "usage: nc [-46DdhklnrStUuvz] [-I length] [-i interval] [-O length]\n"
--	    "\t  [-P proxy_username] [-p source_port] [-s source] [-T ToS]\n"
--	    "\t  [-V rtable] [-w timeout] [-X proxy_protocol]\n"
-+	    "usage: nc [-46CDdhklnrStUuvz] [-I length] [-i interval] [-O length]\n"
-+	    "\t  [-P proxy_username] [-p source_port] [-s source]\n"
-+	    "\t  [-T ToS] [-V rtable] [-w timeout] [-X proxy_protocol]\n"
+-	    "usage: nc [-46DdhjklnrStUuvz] [-I length] [-i interval] [-O length]\n"
++	    "usage: nc [-46CDdhjklnrStUuvz] [-I length] [-i interval] [-O length]\n"
+ 	    "\t  [-P proxy_username] [-p source_port] [-s source] [-T toskeyword]\n"
+ 	    "\t  [-V rtable] [-w timeout] [-X proxy_protocol]\n"
  	    "\t  [-x proxy_address[:port]] [destination] [port]\n");
- 	if (ret)
- 		exit(1);

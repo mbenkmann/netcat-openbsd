@@ -105,43 +105,34 @@ Subject: [PATCH] port to linux with libsd
  	const char *errstr, *proxyhost = "", *proxyport = NULL;
  	struct addrinfo proxyhints;
  	char unix_dg_tmp_socket_buf[UNIX_DG_TMP_SOCKET_SIZE];
-@@ -131,7 +162,7 @@
- 	sv = NULL;
- 
- 	while ((ch = getopt(argc, argv,
--	    "46DdhI:i:jklnO:P:p:rSs:tT:UuV:vw:X:x:z")) != -1) {
-+	    "46DdhI:i:klnO:P:p:rSs:tT:UuV:vw:X:x:z")) != -1) {
- 		switch (ch) {
- 		case '4':
- 			family = AF_INET;
-@@ -163,9 +194,11 @@
- 			if (errstr)
+@@ -164,7 +195,11 @@
  				errx(1, "interval %s: %s", errstr, optarg);
  			break;
-+# if defined(SO_JUMBO)
  		case 'j':
++# if defined(SO_JUMBO)
  			jflag = 1;
++# else
++			errx(1, "no jumbo frame support available");
++# endif
  			break;
-+#endif
  		case 'k':
  			kflag = 1;
- 			break;
-@@ -193,12 +226,14 @@
- 		case 'u':
+@@ -194,10 +229,14 @@
  			uflag = 1;
  			break;
-+# if defined(RT_TABLEID_MAX)
  		case 'V':
++# if defined(RT_TABLEID_MAX)
  			rtableid = (unsigned int)strtonum(optarg, 0,
  			    RT_TABLEID_MAX, &errstr);
  			if (errstr)
  				errx(1, "rtable %s: %s", errstr, optarg);
- 			break;
++# else
++			errx(1, "no alternate routing table support available");
 +# endif
+ 			break;
  		case 'v':
  			vflag = 1;
- 			break;
-@@ -259,6 +294,15 @@
+@@ -259,6 +298,15 @@
  	if (argv[0] && !argv[1] && family == AF_UNIX) {
  		host = argv[0];
  		uport = NULL;
@@ -157,7 +148,7 @@ Subject: [PATCH] port to linux with libsd
  	} else if (argv[0] && !argv[1]) {
  		if  (!lflag)
  			usage(1);
-@@ -270,14 +314,7 @@
+@@ -270,14 +318,7 @@
  	} else
  		usage(1);
  
@@ -173,7 +164,7 @@ Subject: [PATCH] port to linux with libsd
  
  	/* Get name of temporary socket for unix datagram client */
  	if ((family == AF_UNIX) && uflag && !lflag) {
-@@ -286,8 +323,8 @@
+@@ -286,8 +327,8 @@
  		} else {
  			strlcpy(unix_dg_tmp_socket_buf, "/tmp/nc.XXXXXXXXXX",
  				UNIX_DG_TMP_SOCKET_SIZE);
@@ -184,7 +175,7 @@ Subject: [PATCH] port to linux with libsd
  			unix_dg_tmp_socket = unix_dg_tmp_socket_buf;
  		}
  	}
-@@ -563,18 +600,22 @@
+@@ -563,18 +604,22 @@
  		    res0->ai_protocol)) < 0)
  			continue;
  
@@ -207,7 +198,7 @@ Subject: [PATCH] port to linux with libsd
  			memset(&ahints, 0, sizeof(struct addrinfo));
  			ahints.ai_family = res0->ai_family;
  			ahints.ai_socktype = uflag ? SOCK_DGRAM : SOCK_STREAM;
-@@ -674,15 +715,23 @@
+@@ -674,15 +719,23 @@
  		    res0->ai_protocol)) < 0)
  			continue;
  
@@ -231,7 +222,7 @@ Subject: [PATCH] port to linux with libsd
  
  		set_common_sockopts(s);
  
-@@ -886,21 +935,25 @@
+@@ -886,21 +939,25 @@
  {
  	int x = 1;
  
@@ -257,6 +248,25 @@ Subject: [PATCH] port to linux with libsd
  	if (Tflag != -1) {
  		if (setsockopt(s, IPPROTO_IP, IP_TOS,
  		    &Tflag, sizeof(Tflag)) == -1)
+@@ -978,6 +1035,7 @@
+ 	\t-h		This help text\n\
+ 	\t-I length	TCP receive buffer length\n\
+ 	\t-i secs\t	Delay interval for lines sent, ports scanned\n\
++	\t-j		Use jumbo frame\n\
+ 	\t-k		Keep inbound sockets open for multiple connects\n\
+ 	\t-l		Listen mode, for inbound connects\n\
+ 	\t-n		Suppress name/port resolutions\n\
+@@ -1005,8 +1063,8 @@
+ usage(int ret)
+ {
+ 	fprintf(stderr,
+-	    "usage: nc [-46DdhklnrStUuvz] [-I length] [-i interval] [-O length]\n"
+-	    "\t  [-P proxy_username] [-p source_port] [-s source] [-T ToS]\n"
++	    "usage: nc [-46DdhjklnrStUuvz] [-I length] [-i interval] [-O length]\n"
++	    "\t  [-P proxy_username] [-p source_port] [-s source] [-T toskeyword]\n"
+ 	    "\t  [-V rtable] [-w timeout] [-X proxy_protocol]\n"
+ 	    "\t  [-x proxy_address[:port]] [destination] [port]\n");
+ 	if (ret)
 --- a/socks.c
 +++ b/socks.c
 @@ -38,7 +38,9 @@

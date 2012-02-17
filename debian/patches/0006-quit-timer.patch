@@ -36,12 +36,12 @@ Subject: [PATCH] quit timer
  	sv = NULL;
  
  	while ((ch = getopt(argc, argv,
--	    "46CDdhI:i:klnO:P:p:rSs:tT:UuV:vw:X:x:z")) != -1) {
-+	    "46CDdhI:i:klnO:P:p:q:rSs:tT:UuV:vw:X:x:z")) != -1) {
+-	    "46CDdhI:i:jklnO:P:p:rSs:tT:UuV:vw:X:x:z")) != -1) {
++	    "46CDdhI:i:jklnO:P:p:q:rSs:tT:UuV:vw:X:x:z")) != -1) {
  		switch (ch) {
  		case '4':
  			family = AF_INET;
-@@ -222,6 +225,11 @@
+@@ -224,6 +227,11 @@
  		case 'p':
  			pflag = optarg;
  			break;
@@ -53,7 +53,7 @@ Subject: [PATCH] quit timer
  		case 'r':
  			rflag = 1;
  			break;
-@@ -905,9 +913,19 @@
+@@ -909,9 +917,19 @@
  			}
  			else if (pfd[1].revents & POLLHUP) {
  			shutdown_wr:
@@ -75,7 +75,7 @@ Subject: [PATCH] quit timer
  			}
  		}
  	}
-@@ -1140,6 +1158,7 @@
+@@ -1145,6 +1163,7 @@
  	\t-O length	TCP send buffer length\n\
  	\t-P proxyuser\tUsername for proxy authentication\n\
  	\t-p port\t	Specify local port for remote connects\n\
@@ -83,13 +83,14 @@ Subject: [PATCH] quit timer
  	\t-r		Randomize remote ports\n\
  	\t-S		Enable the TCP MD5 signature option\n\
  	\t-s addr\t	Local source address\n\
-@@ -1162,9 +1181,19 @@
+@@ -1167,9 +1186,19 @@
  {
  	fprintf(stderr,
- 	    "usage: nc [-46CDdhklnrStUuvz] [-I length] [-i interval] [-O length]\n"
--	    "\t  [-P proxy_username] [-p source_port] [-s source]\n"
+ 	    "usage: nc [-46CDdhjklnrStUuvz] [-I length] [-i interval] [-O length]\n"
+-	    "\t  [-P proxy_username] [-p source_port] [-s source] [-T toskeyword]\n"
+-	    "\t  [-V rtable] [-w timeout] [-X proxy_protocol]\n"
 +	    "\t  [-P proxy_username] [-p source_port] [-q seconds] [-s source]\n"
- 	    "\t  [-T ToS] [-V rtable] [-w timeout] [-X proxy_protocol]\n"
++	    "\t  [-T toskeyword] [-V rtable] [-w timeout] [-X proxy_protocol]\n"
  	    "\t  [-x proxy_address[:port]] [destination] [port]\n");
  	if (ret)
  		exit(1);
