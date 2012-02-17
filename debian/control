@@ -1,6 +1,6 @@
 Source: netcat-openbsd
 Section: net
-Priority: optional
+Priority: important
 Maintainer: Aron Xu <aron@debian.org>
 Standards-Version: 3.9.2
 Build-Depends: debhelper (>= 8), quilt, libbsd-dev
