@@ -6,6 +6,8 @@ Subject: [PATCH] connect timeout
  netcat.c |   77 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
  1 files changed, 75 insertions(+), 2 deletions(-)
 
+diff --git a/netcat.c b/netcat.c
+index 9b2def2..51a5729 100644
 --- a/netcat.c
 +++ b/netcat.c
 @@ -106,6 +106,10 @@
@@ -19,7 +21,7 @@ Subject: [PATCH] connect timeout
  /* Command Line Options */
  int	dflag;					/* detached, no stdin */
  unsigned int iflag;				/* Interval Flag */
-@@ -151,6 +155,9 @@
+@@ -151,6 +155,9 @@ void	set_common_sockopts(int);
  int	map_tos(char *, int *);
  void	usage(int);
  
@@ -29,7 +31,7 @@ Subject: [PATCH] connect timeout
  int
  main(int argc, char *argv[])
  {
-@@ -651,11 +658,14 @@
+@@ -651,11 +658,14 @@ remote_connect(const char *host, const char *port, struct addrinfo hints)
  
  		set_common_sockopts(s);
  
@@ -46,7 +48,7 @@ Subject: [PATCH] connect timeout
  
  		close(s);
  		s = -1;
-@@ -703,6 +713,69 @@
+@@ -703,6 +713,69 @@ timeout_connect(int s, const struct sockaddr *name, socklen_t namelen)
  	return (ret);
  }
  
@@ -116,3 +118,4 @@ Subject: [PATCH] connect timeout
  /*
   * local_listen()
   * Returns a socket listening on a local port, binds to specified source
+-- 

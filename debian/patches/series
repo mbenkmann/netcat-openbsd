@@ -7,6 +7,5 @@
 0007-udp-scan-timeout.patch
 0008-verbose-numeric-port.patch
 0009-dccp-support.patch
-0010-help-version-exit.patch
-0011-serialized-handling-multiple-clients.patch
-0012-misc-connection-failures.patch
+0010-serialized-handling-multiple-clients.patch
+0011-misc-failures-and-features.patch

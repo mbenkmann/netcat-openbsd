@@ -6,9 +6,11 @@ Subject: [PATCH] get sev by name
  netcat.c |    9 ++++++++-
  1 files changed, 8 insertions(+), 1 deletions(-)
 
+diff --git a/netcat.c b/netcat.c
+index 51a5729..28e871e 100644
 --- a/netcat.c
 +++ b/netcat.c
-@@ -949,12 +949,19 @@
+@@ -949,12 +949,19 @@ atelnet(int nfd, unsigned char *buf, unsigned int size)
  void
  build_ports(char *p)
  {
@@ -29,3 +31,4 @@ Subject: [PATCH] get sev by name
  		*n = '\0';
  		n++;
  
+-- 

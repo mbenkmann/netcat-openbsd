@@ -1,0 +1,246 @@
+From: Aron Xu <aron@debian.org>
+Date: Mon, 13 Feb 2012 19:06:52 +0800
+Subject: [PATCH] misc connection failures
+
+---
+ netcat.c |   22 +++++++++++++++++++---
+ 1 files changed, 19 insertions(+), 3 deletions(-)
+
+--- a/netcat.c
++++ b/netcat.c
+@@ -88,6 +88,7 @@
+ #include <netdb.h>
+ #include <poll.h>
+ #include <signal.h>
++#include <stddef.h>
+ #include <stdarg.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+@@ -146,7 +147,7 @@
+ char *unix_dg_tmp_socket;
+ 
+ void	atelnet(int, unsigned char *, unsigned int);
+-void	build_ports(char *);
++void	build_ports(char **);
+ void	help(void);
+ int	local_listen(char *, char *, struct addrinfo);
+ void	readwrite(int);
+@@ -171,11 +172,14 @@
+ main(int argc, char *argv[])
+ {
+ 	int ch, s, ret, socksv;
+-	char *host, *uport;
++	char *host, **uport;
+ 	struct addrinfo hints;
+ 	struct servent *sv;
+ 	socklen_t len;
+-	struct sockaddr_storage cliaddr;
++	union {
++        	struct sockaddr_storage storage;
++		struct sockaddr_un forunix;
++	} cliaddr;
+ 	char *proxy = NULL;
+ 	const char *errstr, *proxyhost = "", *proxyport = NULL;
+ 	struct addrinfo proxyhints;
+@@ -350,27 +354,24 @@
+ # endif
+ 		host = argv[0];
+ 		uport = NULL;
+-	} else if (!argv[0] && lflag) {
+-		if (sflag)
+-			errx(1, "cannot use -s and -l");
+-		if (zflag)
+-			errx(1, "cannot use -z and -l");
+-		if (pflag)
+-			uport=pflag;
+-	} else if (!lflag && kflag) {
+-		errx(1, "cannot use -k without -l");
+-	} else if (argv[0] && !argv[1]) {
+-		if  (!lflag)
+-			usage(1);
+-		uport = argv[0];
++	} else if (argv[0] && !argv[1] && lflag) {
++		uport = argv;
+ 		host = NULL;
+ 	} else if (argv[0] && argv[1]) {
+ 		host = argv[0];
+-		uport = argv[1];
++		uport = &argv[1];
+ 	} else
+ 		usage(1);
+ 
+-
++	if (lflag) {
++		if (sflag)
++			errx(1, "cannot use -s and -l");
++		if (zflag)
++			errx(1, "cannot use -z and -l");
++		if (pflag)
++			uport = &pflag;
++	} else if (!lflag && kflag)
++		errx(1, "cannot use -k without -l");
+ 
+ 	/* Get name of temporary socket for unix datagram client */
+ 	if ((family == AF_UNIX) && uflag && !lflag) {
+@@ -448,7 +449,7 @@
+ 			else
+ 				s = unix_listen(host);
+ 		} else
+-			s = local_listen(host, uport, hints);
++			s = local_listen(host, *uport, hints);
+ 		if (s < 0)
+ 			err(1, NULL);
+ 
+@@ -457,7 +458,7 @@
+ 			local = ":::";
+ 		else
+ 			local = "0.0.0.0";
+-		fprintf(stderr, "Listening on [%s] (family %d, port %d)\n",
++		fprintf(stderr, "Listening on [%s] (family %d, port %s)\n",
+ 			host ?: local,
+ 			family,
+ 			*uport);
+@@ -490,13 +491,17 @@
+ 				len = sizeof(cliaddr);
+ 				connfd = accept(s, (struct sockaddr *)&cliaddr,
+ 				    &len);
+-				if(vflag) {
++				if(vflag && family == AF_UNIX) {
++	+				fprintf(stderr, "Connection from \"%.*s\" accepted\n",
++						(len - (int)offsetof(struct sockaddr_un, sun_path)),
++						((struct sockaddr_un*)&cliaddr)->sun_path);
++				} else if(vflag) {
+ 					char *proto = proto_name(uflag, dccpflag);
+ 				/* Don't look up port if -n. */
+ 					if (nflag)
+ 						sv = NULL;
+ 					else
+-						sv = getservbyport(ntohs(atoi(uport)),
++						sv = getservbyport(ntohs(atoi(*uport)),
+ 							proto);
+ 
+ 					if (((struct sockaddr *)&cliaddr)->sa_family == AF_INET) {
+@@ -504,7 +509,7 @@
+ 						inet_ntop(((struct sockaddr *)&cliaddr)->sa_family,&(((struct sockaddr_in *)&cliaddr)->sin_addr),dst,INET_ADDRSTRLEN);
+ 						fprintf(stderr, "Connection from [%s] port %s [%s/%s] accepted (family %d, sport %d)\n",
+ 							dst,
+-							uport,
++							*uport,
+ 							proto,
+ 							sv ? sv->s_name : "*",
+ 							((struct sockaddr *)(&cliaddr))->sa_family,
+@@ -515,7 +520,7 @@
+ 						inet_ntop(((struct sockaddr *)&cliaddr)->sa_family,&(((struct sockaddr_in6 *)&cliaddr)->sin6_addr),dst,INET6_ADDRSTRLEN);
+ 						fprintf(stderr, "Connection from [%s] port %s [%s/%s] accepted (family %d, sport %d)\n",
+ 							dst,
+-							uport,
++							*uport,
+ 							uflag ? "udp" : "tcp",
+ 							sv ? sv->s_name : "*",
+ 							((struct sockaddr *)&cliaddr)->sa_family,
+@@ -523,7 +528,7 @@
+ 					}
+ 					else {
+ 						fprintf(stderr, "Connection from unknown port %s [%s/%s] accepted (family %d, sport %d)\n",
+-							uport,
++							*uport,
+ 							uflag ? "udp" : "tcp",
+ 							sv ? sv->s_name : "*",
+ 							((struct sockaddr *)(&cliaddr))->sa_family,
+@@ -534,6 +539,8 @@
+ 				close(connfd);
+ 			}
+ 
++			if (vflag && kflag)
++                                fprintf(stderr, "Connection closed, listening again.\n");
+ 			if (kflag)
+ 				continue;
+ 			if (family != AF_UNIX) {
+@@ -640,6 +647,8 @@
+ 		return (-1);
+ 	}
+ 
++        unlink(path);
++
+ 	if (bind(s, (struct sockaddr *)&sun, SUN_LEN(&sun)) < 0) {
+ 		close(s);
+ 		return (-1);
+@@ -661,8 +670,10 @@
+ 		if ((s = unix_bind(unix_dg_tmp_socket)) < 0)
+ 			return (-1);
+ 	} else {
+-		if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
++		if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
++                        errx(1,"create unix socket failed");
+ 			return (-1);
++                }
+ 	}
+ 	(void)fcntl(s, F_SETFD, 1);
+ 
+@@ -673,9 +684,11 @@
+ 	    sizeof(sun.sun_path)) {
+ 		close(s);
+ 		errno = ENAMETOOLONG;
++                warn("unix connect abandoned");
+ 		return (-1);
+ 	}
+ 	if (connect(s, (struct sockaddr *)&sun, SUN_LEN(&sun)) < 0) {
++                warn("unix connect failed");
+ 		close(s);
+ 		return (-1);
+ 	}
+@@ -1105,22 +1118,23 @@
+  * that we should try to connect to.
+  */
+ void
+-build_ports(char *p)
++build_ports(char **p)
+ {
+         struct servent *sv;
+ 	const char *errstr;
+ 	char *n;
+ 	int hi, lo, cp;
+ 	int x = 0;
++	int i;
+ 
+ 	char *proto = proto_name(uflag, dccpflag);
+-	sv = getservbyname(p, proto);
++	sv = getservbyname(*p, proto);
+         if (sv) {
+                 portlist[0] = calloc(1, PORT_MAX_LEN);
+                 if (portlist[0] == NULL)
+                         err(1, NULL);
+                 snprintf(portlist[0], PORT_MAX_LEN, "%d", ntohs(sv->s_port));
+-        } else if ((n = strchr(p, '-')) != NULL) {
++        } else if ((n = strchr(*p, '-')) != NULL) {
+ 		*n = '\0';
+ 		n++;
+ 
+@@ -1128,9 +1142,9 @@
+ 		hi = strtonum(n, 1, PORT_MAX, &errstr);
+ 		if (errstr)
+ 			errx(1, "port number %s: %s", errstr, n);
+-		lo = strtonum(p, 1, PORT_MAX, &errstr);
++		lo = strtonum(*p, 1, PORT_MAX, &errstr);
+ 		if (errstr)
+-			errx(1, "port number %s: %s", errstr, p);
++			errx(1, "port number %s: %s", errstr, *p);
+ 
+ 		if (lo > hi) {
+ 			cp = hi;
+@@ -1160,10 +1174,12 @@
+ 			}
+ 		}
+ 	} else {
+-		hi = strtonum(p, 1, PORT_MAX, &errstr);
++		hi = strtonum(*p, 1, PORT_MAX, &errstr);
+ 		if (errstr)
+-			errx(1, "port number %s: %s", errstr, p);
+-		portlist[0] = strdup(p);
++			errx(1, "port number %s: %s", errstr, *p);
++		for (i=0;p[i];i++) {
++			portlist[i] = strdup(p[i]);
++		}
+ 		if (portlist[0] == NULL)
+ 			err(1, NULL);
+ 	}

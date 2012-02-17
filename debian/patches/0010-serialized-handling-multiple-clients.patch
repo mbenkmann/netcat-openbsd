@@ -3,12 +3,12 @@ Date: Tue, 14 Feb 2012 23:02:00 +0800
 Subject: [PATCH] serialized handling multiple clients
 
 ---
- netcat.c |   13 ++++++-------
- 1 files changed, 6 insertions(+), 7 deletions(-)
+ netcat.c |   18 +++++++++---------
+ 1 files changed, 9 insertions(+), 9 deletions(-)
 
 --- a/netcat.c
 +++ b/netcat.c
-@@ -447,14 +447,13 @@
+@@ -447,26 +447,24 @@
  				s = unix_bind(host);
  			else
  				s = unix_listen(host);
@@ -17,6 +17,16 @@ Subject: [PATCH] serialized handling multiple clients
 +			s = local_listen(host, uport, hints);
 +		if (s < 0)
 +			err(1, NULL);
++
++		char* local;
++		if (family == AF_INET6)
++			local = ":::";
++		else
++			local = "0.0.0.0";
++		fprintf(stderr, "Listening on [%s] (family %d, port %d)\n",
++			host ?: local,
++			family,
++			*uport);
  
  		/* Allow only one connection at a time, but stay alive. */
  		for (;;) {
@@ -24,10 +34,23 @@ Subject: [PATCH] serialized handling multiple clients
 -				s = local_listen(host, uport, hints);
 -			if (s < 0)
 -				err(1, NULL);
+-
+-			char* local;
+-			if (family == AF_INET6
+-				local = "0.0.0.0";
+-			else if (family == AF_INET)
+-				local = ":::";
+-			else
+-				local = "unknown"
+-			fprintf(stderr, "Listening on [%s] (family %d, port %d)\n",
+-				host ?: local,
+-				family,
+-				*uport);
++
  			/*
  			 * For UDP, we will use recvfrom() initially
  			 * to wait for a caller, then use the regular
-@@ -521,15 +520,16 @@
+@@ -536,15 +534,16 @@
  				close(connfd);
  			}
  
