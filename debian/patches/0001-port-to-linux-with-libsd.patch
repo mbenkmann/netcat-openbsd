@@ -51,10 +51,18 @@ Subject: [PATCH] port to linux with libsd
  
 --- a/netcat.c
 +++ b/netcat.c
-@@ -41,6 +41,35 @@
- #include <netinet/tcp.h>
+@@ -42,6 +42,46 @@
  #include <netinet/ip.h>
  #include <arpa/telnet.h>
+ 
++#ifndef IPTOS_LOWDELAY
++# define IPTOS_LOWDELAY 0x10
++# define IPTOS_THROUGHPUT 0x08
++# define IPTOS_RELIABILITY 0x04
++# define IPTOS_LOWCOST 0x02
++# define IPTOS_MINCOST IPTOS_LOWCOST
++#endif /* IPTOS_LOWDELAY */
++
 +# ifndef IPTOS_DSCP_AF11
 +# define	IPTOS_DSCP_AF11		0x28
 +# define	IPTOS_DSCP_AF12		0x30
@@ -70,6 +78,7 @@ Subject: [PATCH] port to linux with libsd
 +# define	IPTOS_DSCP_AF43		0x98
 +# define	IPTOS_DSCP_EF		0xb8
 +#endif /* IPTOS_DSCP_AF11 */
++
 +#ifndef IPTOS_DSCP_CS0
 +# define	IPTOS_DSCP_CS0		0x00
 +# define	IPTOS_DSCP_CS1		0x20
@@ -80,14 +89,16 @@ Subject: [PATCH] port to linux with libsd
 +# define	IPTOS_DSCP_CS6		0xc0
 +# define	IPTOS_DSCP_CS7		0xe0
 +#endif /* IPTOS_DSCP_CS0 */
++
 +#ifndef IPTOS_DSCP_EF
 +# define	IPTOS_DSCP_EF		0xb8
 +#endif /* IPTOS_DSCP_EF */
 +
- 
++
  #include <err.h>
  #include <errno.h>
-@@ -53,6 +82,8 @@
+ #include <netdb.h>
+@@ -53,6 +93,8 @@
  #include <unistd.h>
  #include <fcntl.h>
  #include <limits.h>
@@ -96,7 +107,7 @@ Subject: [PATCH] port to linux with libsd
  #include "atomicio.h"
  
  #ifndef SUN_LEN
-@@ -118,7 +149,7 @@
+@@ -118,7 +160,7 @@
  	struct servent *sv;
  	socklen_t len;
  	struct sockaddr_storage cliaddr;
@@ -105,7 +116,7 @@ Subject: [PATCH] port to linux with libsd
  	const char *errstr, *proxyhost = "", *proxyport = NULL;
  	struct addrinfo proxyhints;
  	char unix_dg_tmp_socket_buf[UNIX_DG_TMP_SOCKET_SIZE];
-@@ -164,7 +195,11 @@
+@@ -164,7 +206,11 @@
  				errx(1, "interval %s: %s", errstr, optarg);
  			break;
  		case 'j':
@@ -117,7 +128,7 @@ Subject: [PATCH] port to linux with libsd
  			break;
  		case 'k':
  			kflag = 1;
-@@ -194,10 +229,14 @@
+@@ -194,10 +240,14 @@
  			uflag = 1;
  			break;
  		case 'V':
@@ -132,7 +143,7 @@ Subject: [PATCH] port to linux with libsd
  			break;
  		case 'v':
  			vflag = 1;
-@@ -259,6 +298,15 @@
+@@ -259,6 +309,15 @@
  	if (argv[0] && !argv[1] && family == AF_UNIX) {
  		host = argv[0];
  		uport = NULL;
@@ -148,7 +159,7 @@ Subject: [PATCH] port to linux with libsd
  	} else if (argv[0] && !argv[1]) {
  		if  (!lflag)
  			usage(1);
-@@ -270,14 +318,7 @@
+@@ -270,14 +329,7 @@
  	} else
  		usage(1);
  
@@ -164,7 +175,7 @@ Subject: [PATCH] port to linux with libsd
  
  	/* Get name of temporary socket for unix datagram client */
  	if ((family == AF_UNIX) && uflag && !lflag) {
-@@ -286,8 +327,8 @@
+@@ -286,8 +338,8 @@
  		} else {
  			strlcpy(unix_dg_tmp_socket_buf, "/tmp/nc.XXXXXXXXXX",
  				UNIX_DG_TMP_SOCKET_SIZE);
@@ -175,7 +186,7 @@ Subject: [PATCH] port to linux with libsd
  			unix_dg_tmp_socket = unix_dg_tmp_socket_buf;
  		}
  	}
-@@ -563,18 +604,22 @@
+@@ -563,18 +615,22 @@
  		    res0->ai_protocol)) < 0)
  			continue;
  
@@ -198,7 +209,7 @@ Subject: [PATCH] port to linux with libsd
  			memset(&ahints, 0, sizeof(struct addrinfo));
  			ahints.ai_family = res0->ai_family;
  			ahints.ai_socktype = uflag ? SOCK_DGRAM : SOCK_STREAM;
-@@ -674,15 +719,23 @@
+@@ -674,15 +730,23 @@
  		    res0->ai_protocol)) < 0)
  			continue;
  
@@ -222,7 +233,7 @@ Subject: [PATCH] port to linux with libsd
  
  		set_common_sockopts(s);
  
-@@ -886,21 +939,25 @@
+@@ -886,21 +950,25 @@
  {
  	int x = 1;
  
@@ -248,7 +259,15 @@ Subject: [PATCH] port to linux with libsd
  	if (Tflag != -1) {
  		if (setsockopt(s, IPPROTO_IP, IP_TOS,
  		    &Tflag, sizeof(Tflag)) == -1)
-@@ -978,6 +1035,7 @@
+@@ -949,6 +1017,7 @@
+ 		{ "cs7",		IPTOS_DSCP_CS7 },
+ 		{ "ef",			IPTOS_DSCP_EF },
+ 		{ "inetcontrol",	IPTOS_PREC_INTERNETCONTROL },
++		{ "lowcost",		IPTOS_LOWCOST },
+ 		{ "lowdelay",		IPTOS_LOWDELAY },
+ 		{ "netcontrol",		IPTOS_PREC_NETCONTROL },
+ 		{ "reliability",	IPTOS_RELIABILITY },
+@@ -978,6 +1047,7 @@
  	\t-h		This help text\n\
  	\t-I length	TCP receive buffer length\n\
  	\t-i secs\t	Delay interval for lines sent, ports scanned\n\
@@ -256,7 +275,7 @@ Subject: [PATCH] port to linux with libsd
  	\t-k		Keep inbound sockets open for multiple connects\n\
  	\t-l		Listen mode, for inbound connects\n\
  	\t-n		Suppress name/port resolutions\n\
-@@ -1005,8 +1063,8 @@
+@@ -1005,8 +1075,8 @@
  usage(int ret)
  {
  	fprintf(stderr,
@@ -423,3 +442,11 @@ Subject: [PATCH] port to linux with libsd
  .Fl s ,
  or
  .Fl z
+@@ -170,6 +169,7 @@
+ may be one of
+ .Ar critical ,
+ .Ar inetcontrol ,
++.Ar lowcost ,
+ .Ar lowdelay ,
+ .Ar netcontrol ,
+ .Ar throughput ,
