@@ -8,7 +8,7 @@ Subject: [PATCH] get sev by name
 
 --- a/netcat.c
 +++ b/netcat.c
-@@ -944,12 +944,19 @@
+@@ -949,12 +949,19 @@
  void
  build_ports(char *p)
  {

@@ -8,7 +8,7 @@ Subject: [PATCH] connect timeout
 
 --- a/netcat.c
 +++ b/netcat.c
-@@ -105,6 +105,10 @@
+@@ -106,6 +106,10 @@
  #define PORT_MAX_LEN	6
  #define UNIX_DG_TMP_SOCKET_SIZE	19
  
@@ -19,7 +19,7 @@ Subject: [PATCH] connect timeout
  /* Command Line Options */
  int	dflag;					/* detached, no stdin */
  unsigned int iflag;				/* Interval Flag */
-@@ -150,6 +154,9 @@
+@@ -151,6 +155,9 @@
  int	map_tos(char *, int *);
  void	usage(int);
  
@@ -29,7 +29,7 @@ Subject: [PATCH] connect timeout
  int
  main(int argc, char *argv[])
  {
-@@ -646,11 +653,14 @@
+@@ -651,11 +658,14 @@
  
  		set_common_sockopts(s);
  
@@ -46,7 +46,7 @@ Subject: [PATCH] connect timeout
  
  		close(s);
  		s = -1;
-@@ -698,6 +708,69 @@
+@@ -703,6 +713,69 @@
  	return (ret);
  }
  

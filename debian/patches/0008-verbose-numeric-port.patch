@@ -16,7 +16,7 @@ Subject: [PATCH] verbose numeric port
  
  #ifndef IPTOS_LOWDELAY
  # define IPTOS_LOWDELAY 0x10
-@@ -427,16 +428,15 @@
+@@ -432,16 +433,15 @@
  			if (uflag) {
  				int rv, plen;
  				char buf[16384];
@@ -36,7 +36,7 @@ Subject: [PATCH] verbose numeric port
  				if (rv < 0)
  					err(1, "connect");
  
-@@ -445,6 +445,42 @@
+@@ -450,6 +450,42 @@
  				len = sizeof(cliaddr);
  				connfd = accept(s, (struct sockaddr *)&cliaddr,
  				    &len);

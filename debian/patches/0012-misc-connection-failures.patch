@@ -16,7 +16,7 @@ Subject: [PATCH] misc connection failures
  #include <stdarg.h>
  #include <stdio.h>
  #include <stdlib.h>
-@@ -174,7 +175,10 @@
+@@ -175,7 +176,10 @@
  	struct addrinfo hints;
  	struct servent *sv;
  	socklen_t len;
@@ -28,7 +28,7 @@ Subject: [PATCH] misc connection failures
  	char *proxy = NULL;
  	const char *errstr, *proxyhost = "", *proxyport = NULL;
  	struct addrinfo proxyhints;
-@@ -474,7 +478,11 @@
+@@ -479,7 +483,11 @@
  				len = sizeof(cliaddr);
  				connfd = accept(s, (struct sockaddr *)&cliaddr,
  				    &len);
@@ -41,7 +41,7 @@ Subject: [PATCH] misc connection failures
  					char *proto = proto_name(uflag, dccpflag);
  				/* Don't look up port if -n. */
  					if (nflag)
-@@ -515,6 +523,8 @@
+@@ -520,6 +528,8 @@
  				close(connfd);
  			}
  
@@ -50,7 +50,7 @@ Subject: [PATCH] misc connection failures
  			if (kflag)
  				continue;
  			if (family != AF_UNIX) {
-@@ -621,6 +631,8 @@
+@@ -626,6 +636,8 @@
  		return (-1);
  	}
  
@@ -59,7 +59,7 @@ Subject: [PATCH] misc connection failures
  	if (bind(s, (struct sockaddr *)&sun, SUN_LEN(&sun)) < 0) {
  		close(s);
  		return (-1);
-@@ -642,8 +654,10 @@
+@@ -647,8 +659,10 @@
  		if ((s = unix_bind(unix_dg_tmp_socket)) < 0)
  			return (-1);
  	} else {
@@ -71,7 +71,7 @@ Subject: [PATCH] misc connection failures
  	}
  	(void)fcntl(s, F_SETFD, 1);
  
-@@ -654,9 +668,11 @@
+@@ -659,9 +673,11 @@
  	    sizeof(sun.sun_path)) {
  		close(s);
  		errno = ENAMETOOLONG;

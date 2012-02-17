@@ -38,7 +38,7 @@ Subject: [PATCH] send crlf
  RCPT TO:\*(Ltuser2@host.example.com\*(Gt
 --- a/netcat.c
 +++ b/netcat.c
-@@ -110,6 +110,7 @@
+@@ -111,6 +111,7 @@
  #define CONNECTION_TIMEOUT 2
  
  /* Command Line Options */
@@ -46,7 +46,7 @@ Subject: [PATCH] send crlf
  int	dflag;					/* detached, no stdin */
  unsigned int iflag;				/* Interval Flag */
  int	jflag;					/* use jumbo frames if we can */
-@@ -179,7 +180,7 @@
+@@ -180,7 +181,7 @@
  	sv = NULL;
  
  	while ((ch = getopt(argc, argv,
@@ -55,7 +55,7 @@ Subject: [PATCH] send crlf
  		switch (ch) {
  		case '4':
  			family = AF_INET;
-@@ -304,6 +305,9 @@
+@@ -309,6 +310,9 @@
  			if (Tflag < 0 || Tflag > 255 || errstr || errno)
  				errx(1, "illegal tos value %s", optarg);
  			break;
@@ -65,7 +65,7 @@ Subject: [PATCH] send crlf
  		default:
  			usage(1);
  		}
-@@ -901,8 +905,16 @@
+@@ -906,8 +910,16 @@
  			else if (n == 0) {
  				goto shutdown_wr;
  			} else {
@@ -84,7 +84,7 @@ Subject: [PATCH] send crlf
  			}
  			}
  			else if (pfd[1].revents & POLLHUP) {
-@@ -1131,6 +1143,7 @@
+@@ -1136,6 +1148,7 @@
  	fprintf(stderr, "\tCommand Summary:\n\
  	\t-4		Use IPv4\n\
  	\t-6		Use IPv6\n\
@@ -92,7 +92,7 @@ Subject: [PATCH] send crlf
  	\t-D		Enable the debug socket option\n\
  	\t-d		Detach from stdin\n\
  	\t-h		This help text\n\
-@@ -1164,7 +1177,7 @@
+@@ -1169,7 +1182,7 @@
  usage(int ret)
  {
  	fprintf(stderr,

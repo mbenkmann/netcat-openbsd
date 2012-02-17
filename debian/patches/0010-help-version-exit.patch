@@ -8,7 +8,7 @@ Subject: [PATCH] help version exit
 
 --- a/netcat.c
 +++ b/netcat.c
-@@ -1267,6 +1267,9 @@
+@@ -1272,6 +1272,9 @@
  void
  help(void)
  {
@@ -18,7 +18,7 @@ Subject: [PATCH] help version exit
  	usage(0);
  	fprintf(stderr, "\tCommand Summary:\n\
  	\t-4		Use IPv4\n\
-@@ -1300,7 +1303,7 @@
+@@ -1305,7 +1308,7 @@
  	\t-Z		DCCP mode\n\
  	\t-z		Zero-I/O mode [used for scanning]\n\
  	Port numbers can be individual or ranges: lo-hi [inclusive]\n");

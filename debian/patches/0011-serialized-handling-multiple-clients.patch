@@ -8,7 +8,7 @@ Subject: [PATCH] serialized handling multiple clients
 
 --- a/netcat.c
 +++ b/netcat.c
-@@ -442,14 +442,13 @@
+@@ -447,14 +447,13 @@
  				s = unix_bind(host);
  			else
  				s = unix_listen(host);
@@ -27,7 +27,7 @@ Subject: [PATCH] serialized handling multiple clients
  			/*
  			 * For UDP, we will use recvfrom() initially
  			 * to wait for a caller, then use the regular
-@@ -516,15 +515,16 @@
+@@ -521,15 +520,16 @@
  				close(connfd);
  			}
  
