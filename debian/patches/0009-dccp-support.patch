@@ -234,7 +234,7 @@ Subject: [PATCH] dccp support
  .Op Fl I Ar length
  .Op Fl i Ar interval
  .Op Fl O Ar length
-@@ -259,6 +259,8 @@
+@@ -258,6 +258,8 @@
  .Ar port
  is not specified, the well-known port for the proxy protocol is used (1080
  for SOCKS, 3128 for HTTPS).

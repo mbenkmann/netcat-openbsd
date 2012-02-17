@@ -114,7 +114,7 @@ Subject: [PATCH] quit timer
  .Op Fl s Ar source
  .Op Fl T Ar toskeyword
  .Op Fl V Ar rtable
-@@ -151,6 +152,10 @@
+@@ -150,6 +151,10 @@
  It is an error to use this option in conjunction with the
  .Fl l
  option.

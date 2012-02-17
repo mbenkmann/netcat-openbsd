@@ -149,7 +149,7 @@ Subject: [PATCH] port to linux with libsd
 +		if (sflag)
 +			errx(1, "cannot use -s and -l");
 +		if (pflag)
-+			errx(1, "cannot use -p and -l");
++			uport=pflag;
 +		if (zflag)
 +			errx(1, "cannot use -z and -l");
 +	} else if (!lflag && kflag) {
@@ -403,3 +403,13 @@ Subject: [PATCH] port to linux with libsd
  			if (*buf == '\0')
  				break;
  		}
+--- a/nc.1
++++ b/nc.1
+@@ -125,7 +125,6 @@
+ should listen for an incoming connection rather than initiate a
+ connection to a remote host.
+ It is an error to use this option in conjunction with the
+-.Fl p ,
+ .Fl s ,
+ or
+ .Fl z
