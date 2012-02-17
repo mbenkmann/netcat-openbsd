@@ -8,7 +8,7 @@ Subject: [PATCH] dccp support
 
 --- a/netcat.c
 +++ b/netcat.c
-@@ -118,6 +118,7 @@
+@@ -128,6 +128,7 @@
  char   *sflag;					/* Source Address */
  int	tflag;					/* Telnet Emulation */
  int	uflag;					/* UDP - Default to TCP */
@@ -16,7 +16,7 @@ Subject: [PATCH] dccp support
  int	vflag;					/* Verbosity */
  int	xflag;					/* Socks proxy */
  int	zflag;					/* Port Scan Flag */
-@@ -149,6 +150,7 @@
+@@ -159,6 +160,7 @@
  void	set_common_sockopts(int);
  int	map_tos(char *, int *);
  void	usage(int);
@@ -24,7 +24,7 @@ Subject: [PATCH] dccp support
  
  static int connect_with_timeout(int fd, const struct sockaddr *sa,
          socklen_t salen, int ctimeout);
-@@ -176,7 +178,7 @@
+@@ -186,7 +188,7 @@
  	sv = NULL;
  
  	while ((ch = getopt(argc, argv,
@@ -33,7 +33,7 @@ Subject: [PATCH] dccp support
  		switch (ch) {
  		case '4':
  			family = AF_INET;
-@@ -247,6 +249,13 @@
+@@ -257,6 +259,13 @@
  		case 'u':
  			uflag = 1;
  			break;
@@ -47,7 +47,7 @@ Subject: [PATCH] dccp support
  		case 'V':
  # if defined(RT_TABLEID_MAX)
  			rtableid = (unsigned int)strtonum(optarg, 0,
-@@ -318,6 +327,12 @@
+@@ -328,6 +337,12 @@
  
  	/* Cruft to make sure options are clean, and used properly. */
  	if (argv[0] && !argv[1] && family == AF_UNIX) {
@@ -60,7 +60,7 @@ Subject: [PATCH] dccp support
  		host = argv[0];
  		uport = NULL;
  	} else if (!argv[0] && lflag) {
-@@ -359,8 +374,20 @@
+@@ -369,8 +384,20 @@
  	if (family != AF_UNIX) {
  		memset(&hints, 0, sizeof(struct addrinfo));
  		hints.ai_family = family;
@@ -83,7 +83,7 @@ Subject: [PATCH] dccp support
  		if (nflag)
  			hints.ai_flags |= AI_NUMERICHOST;
  	}
-@@ -368,7 +395,10 @@
+@@ -378,7 +405,10 @@
  	if (xflag) {
  		if (uflag)
  			errx(1, "no proxy support for UDP mode");
@@ -95,7 +95,7 @@ Subject: [PATCH] dccp support
  		if (lflag)
  			errx(1, "no proxy support for listen");
  
-@@ -436,12 +466,13 @@
+@@ -446,12 +476,13 @@
  				connfd = accept(s, (struct sockaddr *)&cliaddr,
  				    &len);
  				if(vflag) {
@@ -110,7 +110,7 @@ Subject: [PATCH] dccp support
  
  					if (((struct sockaddr *)&cliaddr)->sa_family == AF_INET) {
  						char dst[INET_ADDRSTRLEN];
-@@ -449,7 +480,7 @@
+@@ -459,7 +490,7 @@
  						fprintf(stderr, "Connection from %s port %s [%s/%s] accepted (protocal family %d)\n",
  							dst,
  							uport,
@@ -119,7 +119,7 @@ Subject: [PATCH] dccp support
  							sv ? sv->s_name : "*",
  							((struct sockaddr *)(&cliaddr))->sa_family);
  					}
-@@ -459,14 +490,14 @@
+@@ -469,14 +500,14 @@
  						fprintf(stderr, "Connection from %s port %s [%s/%s] accepted (protocal family %d)\n",
  							dst,
  							uport,
@@ -136,7 +136,7 @@ Subject: [PATCH] dccp support
  							sv ? sv->s_name : "*",
  							((struct sockaddr *)(&cliaddr))->sa_family);
  					}
-@@ -641,6 +672,24 @@
+@@ -651,6 +682,24 @@
  	return (s);
  }
  
@@ -161,7 +161,7 @@ Subject: [PATCH] dccp support
  /*
   * remote_connect()
   * Returns a socket connected to a remote host. Properly binds to a local
-@@ -679,8 +728,21 @@
+@@ -689,8 +738,21 @@
  # endif
  			memset(&ahints, 0, sizeof(struct addrinfo));
  			ahints.ai_family = res0->ai_family;
@@ -185,7 +185,7 @@ Subject: [PATCH] dccp support
  			ahints.ai_flags = AI_PASSIVE;
  			if ((error = getaddrinfo(sflag, pflag, &ahints, &ares)))
  				errx(1, "getaddrinfo: %s", gai_strerror(error));
-@@ -692,15 +754,19 @@
+@@ -702,15 +764,19 @@
  		}
  
  		set_common_sockopts(s);
@@ -210,7 +210,7 @@ Subject: [PATCH] dccp support
  
  		close(s);
  		s = -1;
-@@ -1018,7 +1084,8 @@
+@@ -1028,7 +1094,8 @@
  	int hi, lo, cp;
  	int x = 0;
  
@@ -220,7 +220,7 @@ Subject: [PATCH] dccp support
          if (sv) {
                  portlist[0] = calloc(1, PORT_MAX_LEN);
                  if (portlist[0] == NULL)
-@@ -1219,6 +1286,7 @@
+@@ -1230,6 +1297,7 @@
  	\t-w secs\t	Timeout for connects and final net reads\n\
  	\t-X proto	Proxy protocol: \"4\", \"5\" (SOCKS) or \"connect\"\n\
  	\t-x addr[:port]\tSpecify proxy address and port\n\
@@ -228,7 +228,7 @@ Subject: [PATCH] dccp support
  	\t-z		Zero-I/O mode [used for scanning]\n\
  	Port numbers can be individual or ranges: lo-hi [inclusive]\n");
  	exit(1);
-@@ -1228,7 +1296,7 @@
+@@ -1239,7 +1307,7 @@
  usage(int ret)
  {
  	fprintf(stderr,
@@ -248,7 +248,7 @@ Subject: [PATCH] dccp support
  .Op Fl I Ar length
  .Op Fl i Ar interval
  .Op Fl O Ar length
-@@ -258,6 +258,8 @@
+@@ -259,6 +259,8 @@
  .Ar port
  is not specified, the well-known port for the proxy protocol is used (1080
  for SOCKS, 3128 for HTTPS).

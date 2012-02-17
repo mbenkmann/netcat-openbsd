@@ -8,7 +8,7 @@ Subject: [PATCH] quit timer
 
 --- a/netcat.c
 +++ b/netcat.c
-@@ -75,6 +75,7 @@
+@@ -86,6 +86,7 @@
  #include <errno.h>
  #include <netdb.h>
  #include <poll.h>
@@ -16,7 +16,7 @@ Subject: [PATCH] quit timer
  #include <stdarg.h>
  #include <stdio.h>
  #include <stdlib.h>
-@@ -109,6 +110,7 @@
+@@ -119,6 +120,7 @@
  int	nflag;					/* Don't do name look up */
  char   *Pflag;					/* Proxy username */
  char   *pflag;					/* Localport flag */
@@ -24,7 +24,7 @@ Subject: [PATCH] quit timer
  int	rflag;					/* Random ports flag */
  char   *sflag;					/* Source Address */
  int	tflag;					/* Telnet Emulation */
-@@ -147,6 +149,7 @@
+@@ -157,6 +159,7 @@
  
  static int connect_with_timeout(int fd, const struct sockaddr *sa,
          socklen_t salen, int ctimeout);
@@ -32,7 +32,7 @@ Subject: [PATCH] quit timer
  
  int
  main(int argc, char *argv[])
-@@ -170,7 +173,7 @@
+@@ -180,7 +183,7 @@
  	sv = NULL;
  
  	while ((ch = getopt(argc, argv,
@@ -41,7 +41,7 @@ Subject: [PATCH] quit timer
  		switch (ch) {
  		case '4':
  			family = AF_INET;
-@@ -224,6 +227,11 @@
+@@ -234,6 +237,11 @@
  		case 'p':
  			pflag = optarg;
  			break;
@@ -53,7 +53,7 @@ Subject: [PATCH] quit timer
  		case 'r':
  			rflag = 1;
  			break;
-@@ -909,9 +917,19 @@
+@@ -919,9 +927,19 @@
  			}
  			else if (pfd[1].revents & POLLHUP) {
  			shutdown_wr:
@@ -75,7 +75,7 @@ Subject: [PATCH] quit timer
  			}
  		}
  	}
-@@ -1145,6 +1163,7 @@
+@@ -1156,6 +1174,7 @@
  	\t-O length	TCP send buffer length\n\
  	\t-P proxyuser\tUsername for proxy authentication\n\
  	\t-p port\t	Specify local port for remote connects\n\
@@ -83,7 +83,7 @@ Subject: [PATCH] quit timer
  	\t-r		Randomize remote ports\n\
  	\t-S		Enable the TCP MD5 signature option\n\
  	\t-s addr\t	Local source address\n\
-@@ -1167,9 +1186,19 @@
+@@ -1178,9 +1197,19 @@
  {
  	fprintf(stderr,
  	    "usage: nc [-46CDdhjklnrStUuvz] [-I length] [-i interval] [-O length]\n"
