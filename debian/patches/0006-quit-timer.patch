@@ -17,10 +17,10 @@ Subject: [PATCH] quit timer
  .Op Fl s Ar source
  .Op Fl T Ar toskeyword
  .Op Fl V Ar rtable
-@@ -151,6 +152,10 @@
- It is an error to use this option in conjunction with the
- .Fl l
- option.
+@@ -147,6 +148,10 @@
+ Specifies the source port
+ .Nm
+ should use, subject to privilege restrictions and availability.
 +.It Fl q Ar seconds
 +after EOF on stdin, wait the specified number of seconds and then quit. If
 +.Ar seconds

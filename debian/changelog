@@ -6,8 +6,7 @@ netcat-openbsd (1.105-1) UNRELEASED; urgency=low
     - Replace non-portable echo with printf (Closes: #510372).
   * debian/patches:
     - Rearrange existing patches, fix new porting issues.
-    - Print message when not supported combinations with
-      option -l (Closes: #540073).
+    - Option -l and -p are now compatible (Closes: #540073).
     - Use libbsd instead of glib for strlcpy (Closes: #550611).
     - Fix build with -Wl,--as-needed (Closes: #604781).
     - Handling multiple clients subsquently when -k (Closes: #514792).

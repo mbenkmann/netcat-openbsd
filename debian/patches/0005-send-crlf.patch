@@ -27,7 +27,7 @@ Subject: [PATCH] send crlf
  .It Fl D
  Enable debugging on the socket.
  .It Fl d
-@@ -358,7 +360,7 @@
+@@ -354,7 +356,7 @@
  of requests required by the server.
  As another example, an email may be submitted to an SMTP server using:
  .Bd -literal -offset indent

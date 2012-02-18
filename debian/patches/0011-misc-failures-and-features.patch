@@ -73,7 +73,7 @@ Subject: [PATCH] misc connection failures
  		case 'U':
  			family = AF_UNIX;
  			break;
-@@ -350,27 +362,24 @@
+@@ -350,27 +362,29 @@
  # endif
  		host = argv[0];
  		uport = NULL;
@@ -92,6 +92,9 @@ Subject: [PATCH] misc connection failures
 -		uport = argv[0];
 +	} else if (argv[0] && !argv[1] && lflag) {
 +		uport = argv;
++		host = NULL;
++	} else if (!argv[0] && lflag && pflag) {
++		uport = &pflag;
  		host = NULL;
  	} else if (argv[0] && argv[1]) {
  		host = argv[0];
@@ -107,13 +110,15 @@ Subject: [PATCH] misc connection failures
 +		if (zflag)
 +			errx(1, "cannot use -z and -l");
 +		if (pflag)
++			/* This still does not work well because of getopt mess
++			errx(1, "cannot use -p and -l"); */
 +			uport = &pflag;
 +	} else if (!lflag && kflag)
 +		errx(1, "cannot use -k without -l");
  
  	/* Get name of temporary socket for unix datagram client */
  	if ((family == AF_UNIX) && uflag && !lflag) {
-@@ -448,7 +457,7 @@
+@@ -448,7 +462,7 @@
  			else
  				s = unix_listen(host);
  		} else
@@ -122,16 +127,17 @@ Subject: [PATCH] misc connection failures
  		if (s < 0)
  			err(1, NULL);
  
-@@ -457,7 +466,7 @@
+@@ -457,7 +471,8 @@
  			local = ":::";
  		else
  			local = "0.0.0.0";
 -		fprintf(stderr, "Listening on [%s] (family %d, port %d)\n",
++		if (vflag)
 +		fprintf(stderr, "Listening on [%s] (family %d, port %s)\n",
  			host ?: local,
  			family,
  			*uport);
-@@ -490,13 +499,17 @@
+@@ -490,13 +505,17 @@
  				len = sizeof(cliaddr);
  				connfd = accept(s, (struct sockaddr *)&cliaddr,
  				    &len);
@@ -151,7 +157,7 @@ Subject: [PATCH] misc connection failures
  							proto);
  
  					if (((struct sockaddr *)&cliaddr)->sa_family == AF_INET) {
-@@ -504,7 +517,7 @@
+@@ -504,7 +523,7 @@
  						inet_ntop(((struct sockaddr *)&cliaddr)->sa_family,&(((struct sockaddr_in *)&cliaddr)->sin_addr),dst,INET_ADDRSTRLEN);
  						fprintf(stderr, "Connection from [%s] port %s [%s/%s] accepted (family %d, sport %d)\n",
  							dst,
@@ -160,7 +166,7 @@ Subject: [PATCH] misc connection failures
  							proto,
  							sv ? sv->s_name : "*",
  							((struct sockaddr *)(&cliaddr))->sa_family,
-@@ -515,7 +528,7 @@
+@@ -515,7 +534,7 @@
  						inet_ntop(((struct sockaddr *)&cliaddr)->sa_family,&(((struct sockaddr_in6 *)&cliaddr)->sin6_addr),dst,INET6_ADDRSTRLEN);
  						fprintf(stderr, "Connection from [%s] port %s [%s/%s] accepted (family %d, sport %d)\n",
  							dst,
@@ -169,7 +175,7 @@ Subject: [PATCH] misc connection failures
  							uflag ? "udp" : "tcp",
  							sv ? sv->s_name : "*",
  							((struct sockaddr *)&cliaddr)->sa_family,
-@@ -523,7 +536,7 @@
+@@ -523,7 +542,7 @@
  					}
  					else {
  						fprintf(stderr, "Connection from unknown port %s [%s/%s] accepted (family %d, sport %d)\n",
@@ -178,7 +184,7 @@ Subject: [PATCH] misc connection failures
  							uflag ? "udp" : "tcp",
  							sv ? sv->s_name : "*",
  							((struct sockaddr *)(&cliaddr))->sa_family,
-@@ -534,6 +547,8 @@
+@@ -534,6 +553,8 @@
  				close(connfd);
  			}
  
@@ -187,7 +193,7 @@ Subject: [PATCH] misc connection failures
  			if (kflag)
  				continue;
  			if (family != AF_UNIX) {
-@@ -640,6 +655,8 @@
+@@ -640,6 +661,8 @@
  		return (-1);
  	}
  
@@ -196,7 +202,7 @@ Subject: [PATCH] misc connection failures
  	if (bind(s, (struct sockaddr *)&sun, SUN_LEN(&sun)) < 0) {
  		close(s);
  		return (-1);
-@@ -661,8 +678,10 @@
+@@ -661,8 +684,10 @@
  		if ((s = unix_bind(unix_dg_tmp_socket)) < 0)
  			return (-1);
  	} else {
@@ -208,7 +214,7 @@ Subject: [PATCH] misc connection failures
  	}
  	(void)fcntl(s, F_SETFD, 1);
  
-@@ -673,9 +692,11 @@
+@@ -673,9 +698,11 @@
  	    sizeof(sun.sun_path)) {
  		close(s);
  		errno = ENAMETOOLONG;
@@ -220,7 +226,7 @@ Subject: [PATCH] misc connection failures
  		close(s);
  		return (-1);
  	}
-@@ -1105,22 +1126,23 @@
+@@ -1105,22 +1132,23 @@
   * that we should try to connect to.
   */
  void
@@ -247,7 +253,7 @@ Subject: [PATCH] misc connection failures
  		*n = '\0';
  		n++;
  
-@@ -1128,9 +1150,9 @@
+@@ -1128,9 +1156,9 @@
  		hi = strtonum(n, 1, PORT_MAX, &errstr);
  		if (errstr)
  			errx(1, "port number %s: %s", errstr, n);
@@ -259,7 +265,7 @@ Subject: [PATCH] misc connection failures
  
  		if (lo > hi) {
  			cp = hi;
-@@ -1160,10 +1182,12 @@
+@@ -1160,10 +1188,12 @@
  			}
  		}
  	} else {
@@ -275,7 +281,7 @@ Subject: [PATCH] misc connection failures
  		if (portlist[0] == NULL)
  			err(1, NULL);
  	}
-@@ -1198,6 +1222,13 @@
+@@ -1198,6 +1228,13 @@
  {
  	int x = 1;
  
@@ -289,7 +295,7 @@ Subject: [PATCH] misc connection failures
  # if defined(TCP_MD5SIG)
  	if (Sflag) {
  		if (setsockopt(s, IPPROTO_TCP, TCP_MD5SIG,
-@@ -1293,6 +1324,7 @@
+@@ -1293,6 +1330,7 @@
  	fprintf(stderr, "\tCommand Summary:\n\
  	\t-4		Use IPv4\n\
  	\t-6		Use IPv6\n\
@@ -297,7 +303,7 @@ Subject: [PATCH] misc connection failures
  	\t-C		Send CRLF as line-ending\n\
  	\t-D		Enable the debug socket option\n\
  	\t-d		Detach from stdin\n\
-@@ -1329,7 +1361,7 @@
+@@ -1329,7 +1367,7 @@
  usage(int ret)
  {
  	fprintf(stderr,
@@ -326,7 +332,7 @@ Subject: [PATCH] misc connection failures
  .It Fl C
  Send CRLF as line-ending.
  .It Fl D
-@@ -326,6 +328,54 @@
+@@ -322,6 +324,54 @@
  The connection may be terminated using an
  .Dv EOF
  .Pq Sq ^D .
@@ -381,7 +387,7 @@ Subject: [PATCH] misc connection failures
  .Sh DATA TRANSFER
  The example in the previous section can be expanded to build a
  basic data transfer model.
-@@ -385,15 +435,30 @@
+@@ -381,15 +431,30 @@
  flag can be used to tell
  .Nm
  to report open ports,
@@ -415,7 +421,7 @@ Subject: [PATCH] misc connection failures
  .Pp
  Alternatively, it might be useful to know which server software
  is running, and which versions.
-@@ -458,6 +523,9 @@
+@@ -454,6 +519,9 @@
  .br
  Rewritten with IPv6 support by
  .An Eric Jackson Aq ericj@monkey.org .
