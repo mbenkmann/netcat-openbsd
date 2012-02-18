@@ -35,7 +35,17 @@ Subject: [PATCH] port to linux with libsd
 +	rm -f $(OBJS) nc
 --- a/nc.1
 +++ b/nc.1
-@@ -170,6 +170,7 @@
+@@ -146,9 +146,6 @@
+ Specifies the source port
+ .Nm
+ should use, subject to privilege restrictions and availability.
+-It is an error to use this option in conjunction with the
+-.Fl l
+-option.
+ .It Fl r
+ Specifies that source and/or destination ports should be chosen randomly
+ instead of sequentially within a range or in the order that the system
+@@ -170,6 +167,7 @@
  may be one of
  .Ar critical ,
  .Ar inetcontrol ,

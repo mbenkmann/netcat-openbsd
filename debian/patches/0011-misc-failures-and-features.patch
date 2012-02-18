@@ -332,7 +332,7 @@ Subject: [PATCH] misc connection failures
  .It Fl C
  Send CRLF as line-ending.
  .It Fl D
-@@ -322,6 +324,54 @@
+@@ -323,6 +325,54 @@
  The connection may be terminated using an
  .Dv EOF
  .Pq Sq ^D .
@@ -387,7 +387,7 @@ Subject: [PATCH] misc connection failures
  .Sh DATA TRANSFER
  The example in the previous section can be expanded to build a
  basic data transfer model.
-@@ -381,15 +431,30 @@
+@@ -382,15 +432,30 @@
  flag can be used to tell
  .Nm
  to report open ports,
@@ -421,7 +421,7 @@ Subject: [PATCH] misc connection failures
  .Pp
  Alternatively, it might be useful to know which server software
  is running, and which versions.
-@@ -454,6 +519,9 @@
+@@ -455,6 +520,9 @@
  .br
  Rewritten with IPv6 support by
  .An Eric Jackson Aq ericj@monkey.org .
