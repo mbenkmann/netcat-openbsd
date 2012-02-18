@@ -18,7 +18,7 @@ netcat-openbsd (1.105-1) UNRELEASED; urgency=low
     - Arbitrary port list to scan.
     - Fix misc connection failures
       (Closes: #579485, #579486, #579487, #579488, #633948).
-    - Improve verbose infromation and documentations.
+    - Improve verbose information and documentations.
   * debian/rules:
     - Link nc.openbsd.1 from nc.1 (Closes: #535951).
     - Enable optional hardening build flags.
