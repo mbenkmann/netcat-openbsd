@@ -15,16 +15,19 @@ netcat-openbsd (1.105-1) UNRELEASED; urgency=low
       (Closes: #512992).
     - Modify -q behavior to be compatible with nc.traditional
       (Closes: #508722, #594614, #606925, #611964).
-    - DCCP support.
+    - DCCP and broadcast support.
+    - Arbitrary port list to scan.
     - Fix misc connection failures
       (Closes: #579485, #579486, #579487, #579488, #633948).
-    - Improve documentations.
+    - Improve verbose infromation and documentations.
   * debian/rules:
     - Link nc.openbsd.1 from nc.1 (Closes: #535951).
     - Enable optional hardening build flags.
   * debian/control:
     - Replace glib with libbsd.
     - Update to use debhelper 8, std-ver 3.9.2.
+    - Priority: important, to make it into base system.
+    - Add Vcs-*.
   * debian/compat:
     - Update to 8 from 4.
 

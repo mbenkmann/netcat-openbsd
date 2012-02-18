@@ -7,8 +7,6 @@ Subject: [PATCH] quit timer
  netcat.c |   39 ++++++++++++++++++++++++++++++++++-----
  2 files changed, 39 insertions(+), 5 deletions(-)
 
-diff --git a/nc.1 b/nc.1
-index f807f13..b276bf4 100644
 --- a/nc.1
 +++ b/nc.1
 @@ -40,6 +40,7 @@
@@ -19,7 +17,7 @@ index f807f13..b276bf4 100644
  .Op Fl s Ar source
  .Op Fl T Ar toskeyword
  .Op Fl V Ar rtable
-@@ -150,6 +151,10 @@ should use, subject to privilege restrictions and availability.
+@@ -151,6 +152,10 @@
  It is an error to use this option in conjunction with the
  .Fl l
  option.
@@ -30,8 +28,6 @@ index f807f13..b276bf4 100644
  .It Fl r
  Specifies that source and/or destination ports should be chosen randomly
  instead of sequentially within a range or in the order that the system
-diff --git a/netcat.c b/netcat.c
-index ab1e96a..ae96594 100644
 --- a/netcat.c
 +++ b/netcat.c
 @@ -86,6 +86,7 @@
@@ -42,7 +38,7 @@ index ab1e96a..ae96594 100644
  #include <stdarg.h>
  #include <stdio.h>
  #include <stdlib.h>
-@@ -120,6 +121,7 @@ int	lflag;					/* Bind to local port */
+@@ -120,6 +121,7 @@
  int	nflag;					/* Don't do name look up */
  char   *Pflag;					/* Proxy username */
  char   *pflag;					/* Localport flag */
@@ -50,7 +46,7 @@ index ab1e96a..ae96594 100644
  int	rflag;					/* Random ports flag */
  char   *sflag;					/* Source Address */
  int	tflag;					/* Telnet Emulation */
-@@ -158,6 +160,7 @@ void	usage(int);
+@@ -158,6 +160,7 @@
  
  static int connect_with_timeout(int fd, const struct sockaddr *sa,
          socklen_t salen, int ctimeout);
@@ -58,7 +54,7 @@ index ab1e96a..ae96594 100644
  
  int
  main(int argc, char *argv[])
-@@ -181,7 +184,7 @@ main(int argc, char *argv[])
+@@ -181,7 +184,7 @@
  	sv = NULL;
  
  	while ((ch = getopt(argc, argv,
@@ -67,7 +63,7 @@ index ab1e96a..ae96594 100644
  		switch (ch) {
  		case '4':
  			family = AF_INET;
-@@ -235,6 +238,11 @@ main(int argc, char *argv[])
+@@ -235,6 +238,11 @@
  		case 'p':
  			pflag = optarg;
  			break;
@@ -79,7 +75,7 @@ index ab1e96a..ae96594 100644
  		case 'r':
  			rflag = 1;
  			break;
-@@ -924,9 +932,19 @@ readwrite(int nfd)
+@@ -924,9 +932,19 @@
  			}
  			else if (pfd[1].revents & POLLHUP) {
  			shutdown_wr:
@@ -101,7 +97,7 @@ index ab1e96a..ae96594 100644
  			}
  		}
  	}
-@@ -1164,6 +1182,7 @@ help(void)
+@@ -1164,6 +1182,7 @@
  	\t-O length	TCP send buffer length\n\
  	\t-P proxyuser\tUsername for proxy authentication\n\
  	\t-p port\t	Specify local port for remote connects\n\
@@ -109,7 +105,7 @@ index ab1e96a..ae96594 100644
  	\t-r		Randomize remote ports\n\
  	\t-S		Enable the TCP MD5 signature option\n\
  	\t-s addr\t	Local source address\n\
-@@ -1186,9 +1205,19 @@ usage(int ret)
+@@ -1186,9 +1205,19 @@
  {
  	fprintf(stderr,
  	    "usage: nc [-46CDdhjklnrStUuvz] [-I length] [-i interval] [-O length]\n"
@@ -131,4 +127,3 @@ index ab1e96a..ae96594 100644
 +        /* XXX: should explicitly close fds here */
 +        exit(0);
 +}
--- 
