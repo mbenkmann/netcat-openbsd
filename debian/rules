@@ -3,7 +3,7 @@ DPKG_EXPORT_BUILDFLAGS = 1
 -include /usr/share/dpkg/buildflags.mk
 
 DEB_CFLAGS = $(CPPFLAGS) $(CFLAGS)
-DEB_LDFLAGS = -Wl,--no-add-needed,--as-needed -z now -pie -fPIE
+DEB_LDFLAGS = -Wl,--no-add-needed,--as-needed
 DEB_VER = $(shell dpkg-parsechangelog | sed -n 's/^Version: //p')
 
 %:
