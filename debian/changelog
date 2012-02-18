@@ -1,4 +1,10 @@
-netcat-openbsd (1.105-1) UNRELEASED; urgency=low
+netcat-openbsd (1.105-2) unstable; urgency=low
+
+  * Add missing Build-Depends: pkg-config.
+
+ -- Aron Xu <aron@debian.org>  Sun, 19 Feb 2012 03:59:37 +0800
+
+netcat-openbsd (1.105-1) unstable; urgency=low
 
   * New upstream CVS snapshot, new maintainer.
     - Verbose message to strerr (Closes: #570765).
