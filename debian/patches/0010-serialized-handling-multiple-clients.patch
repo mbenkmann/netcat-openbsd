@@ -36,12 +36,12 @@ Subject: [PATCH] serialized handling multiple clients
 -				err(1, NULL);
 -
 -			char* local;
--			if (family == AF_INET6
+-			if (family == AF_INET6 )
 -				local = "0.0.0.0";
 -			else if (family == AF_INET)
 -				local = ":::";
 -			else
--				local = "unknown"
+-				local = "unknown";
 -			fprintf(stderr, "Listening on [%s] (family %d, port %d)\n",
 -				host ?: local,
 -				family,

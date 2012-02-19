@@ -11,7 +11,7 @@ Package: netcat-openbsd
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Provides: netcat
-Conflicts: netcat (<< 1.10-35)
+Breaks: netcat (<< 1.10-35)
 Replaces: netcat (<< 1.10-35)
 Description: TCP/IP swiss army knife
  A simple Unix utility which reads and writes data across network

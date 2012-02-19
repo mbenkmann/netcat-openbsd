@@ -1,3 +1,11 @@
+netcat-openbsd (1.105-3) unstable; urgency=low
+
+  * Clear up symlink of man page.
+  * Use Breaks instead of Conflicts.
+  * Fix minor warnings from man.
+
+ -- Aron Xu <aron@debian.org>  Sun, 19 Feb 2012 14:28:46 +0800
+
 netcat-openbsd (1.105-2) unstable; urgency=low
 
   * Add missing Build-Depends: pkg-config.

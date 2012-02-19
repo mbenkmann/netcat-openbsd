@@ -116,6 +116,21 @@ Subject: [PATCH] dccp support
  		if (lflag)
  			errx(1, "no proxy support for listen");
  
+@@ -427,12 +457,12 @@
+ 				err(1, NULL);
+ 
+ 			char* local;
+-			if (family == AF_INET6
++			if (family == AF_INET6 )
+ 				local = "0.0.0.0";
+ 			else if (family == AF_INET)
+ 				local = ":::";
+ 			else
+-				local = "unknown"
++				local = "unknown";
+ 			fprintf(stderr, "Listening on [%s] (family %d, port %d)\n",
+ 				host ?: local,
+ 				family,
 @@ -463,12 +493,13 @@
  				connfd = accept(s, (struct sockaddr *)&cliaddr,
  				    &len);
@@ -140,7 +155,48 @@ Subject: [PATCH] dccp support
  							sv ? sv->s_name : "*",
  							((struct sockaddr *)(&cliaddr))->sa_family,
  							ntohs(((struct sockaddr_in *)&cliaddr)->sin_port));
-@@ -671,6 +702,24 @@
+@@ -487,7 +518,7 @@
+ 						fprintf(stderr, "Connection from [%s] port %s [%s/%s] accepted (family %d, sport %d)\n",
+ 							dst,
+ 							uport,
+-							uflag ? "udp" : "tcp",
++							proto,
+ 							sv ? sv->s_name : "*",
+ 							((struct sockaddr *)&cliaddr)->sa_family,
+ 							ntohs(((struct sockaddr_in6 *)&cliaddr)->sin6_port));
+@@ -495,7 +526,7 @@
+ 					else {
+ 						fprintf(stderr, "Connection from unknown port %s [%s/%s] accepted (family %d, sport %d)\n",
+ 							uport,
+-							uflag ? "udp" : "tcp",
++							proto,
+ 							sv ? sv->s_name : "*",
+ 							((struct sockaddr *)(&cliaddr))->sa_family,
+ 							ntohs(((struct sockaddr_in *)&cliaddr)->sin_port));
+@@ -559,19 +590,20 @@
+ 					}
+ 				}
+ 
++				char *proto = proto_name(uflag, dccpflag);
+ 				/* Don't look up port if -n. */
+ 				if (nflag)
+ 					sv = NULL;
+ 				else {
+ 					sv = getservbyport(
+ 					    ntohs(atoi(portlist[i])),
+-					    uflag ? "udp" : "tcp");
++					    proto);
+ 				}
+ 
+ 				fprintf(stderr,
+ 				    "Connection to %s %s port [%s/%s] "
+ 				    "succeeded!\n", host, portlist[i],
+-				    uflag ? "udp" : "tcp",
++				    proto,
+ 				    sv ? sv->s_name : "*");
+ 			}
+ 			if (!zflag)
+@@ -671,6 +703,24 @@
  	return (s);
  }
  
@@ -165,7 +221,7 @@ Subject: [PATCH] dccp support
  /*
   * remote_connect()
   * Returns a socket connected to a remote host. Properly binds to a local
-@@ -709,8 +758,21 @@
+@@ -709,8 +759,21 @@
  # endif
  			memset(&ahints, 0, sizeof(struct addrinfo));
  			ahints.ai_family = res0->ai_family;
@@ -189,7 +245,7 @@ Subject: [PATCH] dccp support
  			ahints.ai_flags = AI_PASSIVE;
  			if ((error = getaddrinfo(sflag, pflag, &ahints, &ares)))
  				errx(1, "getaddrinfo: %s", gai_strerror(error));
-@@ -722,15 +784,19 @@
+@@ -722,15 +785,19 @@
  		}
  
  		set_common_sockopts(s);
@@ -214,7 +270,7 @@ Subject: [PATCH] dccp support
  
  		close(s);
  		s = -1;
-@@ -1048,7 +1114,8 @@
+@@ -1048,7 +1115,8 @@
  	int hi, lo, cp;
  	int x = 0;
  
@@ -224,7 +280,7 @@ Subject: [PATCH] dccp support
          if (sv) {
                  portlist[0] = calloc(1, PORT_MAX_LEN);
                  if (portlist[0] == NULL)
-@@ -1253,6 +1320,7 @@
+@@ -1253,6 +1321,7 @@
  	\t-w secs\t	Timeout for connects and final net reads\n\
  	\t-X proto	Proxy protocol: \"4\", \"5\" (SOCKS) or \"connect\"\n\
  	\t-x addr[:port]\tSpecify proxy address and port\n\
@@ -232,7 +288,7 @@ Subject: [PATCH] dccp support
  	\t-z		Zero-I/O mode [used for scanning]\n\
  	Port numbers can be individual or ranges: lo-hi [inclusive]\n");
  	exit(0);
-@@ -1262,7 +1330,7 @@
+@@ -1262,7 +1331,7 @@
  usage(int ret)
  {
  	fprintf(stderr,

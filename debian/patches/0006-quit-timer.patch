@@ -17,7 +17,7 @@ Subject: [PATCH] quit timer
  .Op Fl s Ar source
  .Op Fl T Ar toskeyword
  .Op Fl V Ar rtable
-@@ -147,6 +148,10 @@
+@@ -148,6 +149,10 @@
  Specifies the source port
  .Nm
  should use, subject to privilege restrictions and availability.
