@@ -1,3 +1,10 @@
+netcat-openbsd (1.105-4) unstable; urgency=high
+
+  * High urgency for fixing RC bug.
+  * Fix readwrite() behaviour (Closes: #662741).
+
+ -- Aron Xu <aron@debian.org>  Tue, 06 Mar 2012 15:18:26 +0800
+
 netcat-openbsd (1.105-3) unstable; urgency=low
 
   * Clear up symlink of man page.

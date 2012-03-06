@@ -75,7 +75,7 @@ Subject: [PATCH] quit timer
  		case 'r':
  			rflag = 1;
  			break;
-@@ -924,9 +932,19 @@
+@@ -924,9 +932,18 @@
  			}
  			else if (pfd[1].revents & POLLHUP) {
  			shutdown_wr:
@@ -85,7 +85,6 @@ Subject: [PATCH] quit timer
 -				pfd[1].fd = -1;
 -				pfd[1].events = 0;
 +				close(wfd);
-+				exit(0);
 +			}
 +			/* if user asked to die after a while, arrange for it */
 +			if (qflag > 0) {
@@ -97,7 +96,7 @@ Subject: [PATCH] quit timer
  			}
  		}
  	}
-@@ -1164,6 +1182,7 @@
+@@ -1164,6 +1181,7 @@
  	\t-O length	TCP send buffer length\n\
  	\t-P proxyuser\tUsername for proxy authentication\n\
  	\t-p port\t	Specify local port for remote connects\n\
@@ -105,7 +104,7 @@ Subject: [PATCH] quit timer
  	\t-r		Randomize remote ports\n\
  	\t-S		Enable the TCP MD5 signature option\n\
  	\t-s addr\t	Local source address\n\
-@@ -1186,9 +1205,19 @@
+@@ -1186,9 +1204,19 @@
  {
  	fprintf(stderr,
  	    "usage: nc [-46CDdhjklnrStUuvz] [-I length] [-i interval] [-O length]\n"

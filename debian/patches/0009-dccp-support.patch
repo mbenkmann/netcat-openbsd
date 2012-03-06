@@ -270,7 +270,7 @@ Subject: [PATCH] dccp support
  
  		close(s);
  		s = -1;
-@@ -1048,7 +1115,8 @@
+@@ -1047,7 +1114,8 @@
  	int hi, lo, cp;
  	int x = 0;
  
@@ -280,7 +280,7 @@ Subject: [PATCH] dccp support
          if (sv) {
                  portlist[0] = calloc(1, PORT_MAX_LEN);
                  if (portlist[0] == NULL)
-@@ -1253,6 +1321,7 @@
+@@ -1252,6 +1320,7 @@
  	\t-w secs\t	Timeout for connects and final net reads\n\
  	\t-X proto	Proxy protocol: \"4\", \"5\" (SOCKS) or \"connect\"\n\
  	\t-x addr[:port]\tSpecify proxy address and port\n\
@@ -288,7 +288,7 @@ Subject: [PATCH] dccp support
  	\t-z		Zero-I/O mode [used for scanning]\n\
  	Port numbers can be individual or ranges: lo-hi [inclusive]\n");
  	exit(0);
-@@ -1262,7 +1331,7 @@
+@@ -1261,7 +1330,7 @@
  usage(int ret)
  {
  	fprintf(stderr,
