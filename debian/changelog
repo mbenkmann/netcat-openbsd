@@ -1,3 +1,9 @@
+netcat-openbsd (1.105-5) unstable; urgency=low
+
+  * Add $LDFLAGS from environment (Closes: #665321). 
+
+ -- Aron Xu <aron@debian.org>  Mon, 26 Mar 2012 01:37:16 +0800
+
 netcat-openbsd (1.105-4) unstable; urgency=high
 
   * High urgency for fixing RC bug.
