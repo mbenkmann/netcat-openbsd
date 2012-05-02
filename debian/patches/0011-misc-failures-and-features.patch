@@ -137,7 +137,7 @@ Subject: [PATCH] misc connection failures
  		else
  			local = "0.0.0.0";
 -		fprintf(stderr, "Listening on [%s] (family %d, port %d)\n",
-+		if (vflag)
++		if (vflag && (family != AF_UNIX))
 +		fprintf(stderr, "Listening on [%s] (family %d, port %s)\n",
  			host ?: local,
  			family,
