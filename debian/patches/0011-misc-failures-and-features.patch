@@ -180,7 +180,7 @@ Subject: [PATCH] misc connection failures
  							proto,
  							sv ? sv->s_name : "*",
  							((struct sockaddr *)&cliaddr)->sa_family,
-@@ -523,7 +547,7 @@
+@@ -523,17 +547,21 @@
  					}
  					else {
  						fprintf(stderr, "Connection from unknown port %s [%s/%s] accepted (family %d, sport %d)\n",
@@ -189,7 +189,12 @@ Subject: [PATCH] misc connection failures
  							proto,
  							sv ? sv->s_name : "*",
  							((struct sockaddr *)(&cliaddr))->sa_family,
-@@ -534,6 +558,8 @@
+ 							ntohs(((struct sockaddr_in *)&cliaddr)->sin_port));
+ 					}
+ 				}
++                                if(!kflag)
++                                        close(s);
+ 				readwrite(connfd);
  				close(connfd);
  			}
  
@@ -198,7 +203,7 @@ Subject: [PATCH] misc connection failures
  			if (kflag)
  				continue;
  			if (family != AF_UNIX) {
-@@ -641,6 +667,8 @@
+@@ -641,6 +669,8 @@
  		return (-1);
  	}
  
@@ -207,7 +212,7 @@ Subject: [PATCH] misc connection failures
  	if (bind(s, (struct sockaddr *)&sun, SUN_LEN(&sun)) < 0) {
  		close(s);
  		return (-1);
-@@ -662,8 +690,10 @@
+@@ -662,8 +692,10 @@
  		if ((s = unix_bind(unix_dg_tmp_socket)) < 0)
  			return (-1);
  	} else {
@@ -219,7 +224,7 @@ Subject: [PATCH] misc connection failures
  	}
  	(void)fcntl(s, F_SETFD, 1);
  
-@@ -674,9 +704,11 @@
+@@ -674,9 +706,11 @@
  	    sizeof(sun.sun_path)) {
  		close(s);
  		errno = ENAMETOOLONG;
@@ -231,7 +236,7 @@ Subject: [PATCH] misc connection failures
  		close(s);
  		return (-1);
  	}
-@@ -1105,22 +1137,23 @@
+@@ -1105,22 +1139,23 @@
   * that we should try to connect to.
   */
  void
@@ -258,7 +263,7 @@ Subject: [PATCH] misc connection failures
  		*n = '\0';
  		n++;
  
-@@ -1128,9 +1161,9 @@
+@@ -1128,9 +1163,9 @@
  		hi = strtonum(n, 1, PORT_MAX, &errstr);
  		if (errstr)
  			errx(1, "port number %s: %s", errstr, n);
@@ -270,7 +275,7 @@ Subject: [PATCH] misc connection failures
  
  		if (lo > hi) {
  			cp = hi;
-@@ -1160,10 +1193,12 @@
+@@ -1160,10 +1195,12 @@
  			}
  		}
  	} else {
@@ -286,7 +291,7 @@ Subject: [PATCH] misc connection failures
  		if (portlist[0] == NULL)
  			err(1, NULL);
  	}
-@@ -1198,6 +1233,13 @@
+@@ -1198,6 +1235,13 @@
  {
  	int x = 1;
  
@@ -300,7 +305,7 @@ Subject: [PATCH] misc connection failures
  # if defined(TCP_MD5SIG)
  	if (Sflag) {
  		if (setsockopt(s, IPPROTO_TCP, TCP_MD5SIG,
-@@ -1293,6 +1335,7 @@
+@@ -1293,6 +1337,7 @@
  	fprintf(stderr, "\tCommand Summary:\n\
  	\t-4		Use IPv4\n\
  	\t-6		Use IPv6\n\
@@ -308,7 +313,7 @@ Subject: [PATCH] misc connection failures
  	\t-C		Send CRLF as line-ending\n\
  	\t-D		Enable the debug socket option\n\
  	\t-d		Detach from stdin\n\
-@@ -1329,7 +1372,7 @@
+@@ -1329,7 +1374,7 @@
  usage(int ret)
  {
  	fprintf(stderr,
