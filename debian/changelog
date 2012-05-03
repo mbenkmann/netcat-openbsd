@@ -1,3 +1,10 @@
+netcat-openbsd (1.105-6) unstable; urgency=low
+
+  * Fix segfaults when using -Ulv (Closes: #668558).
+  * Do not continue to listen on port after accepting connection.
+
+ -- Aron Xu <aron@debian.org>  Thu, 03 May 2012 07:38:59 +0800
+
 netcat-openbsd (1.105-5) unstable; urgency=low
 
   * Add $LDFLAGS from environment (Closes: #665321). 
