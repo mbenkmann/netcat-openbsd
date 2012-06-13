@@ -1,11 +1,13 @@
 From: Aron Xu <aron@debian.org>
 Date: Mon, 13 Feb 2012 15:38:15 +0800
-Subject: [PATCH] verbose numeric port
+Subject: verbose numeric port
 
 ---
- netcat.c |   44 ++++++++++++++++++++++++++++++++++++++++----
- 1 files changed, 40 insertions(+), 4 deletions(-)
+ netcat.c |   59 +++++++++++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 55 insertions(+), 4 deletions(-)
 
+diff --git a/netcat.c b/netcat.c
+index baab909..eb3453e 100644
 --- a/netcat.c
 +++ b/netcat.c
 @@ -41,6 +41,7 @@
@@ -16,7 +18,7 @@ Subject: [PATCH] verbose numeric port
  
  #ifndef IPTOS_LOWDELAY
  # define IPTOS_LOWDELAY 0x10
-@@ -424,6 +425,18 @@
+@@ -424,6 +425,18 @@ main(int argc, char *argv[])
  				s = local_listen(host, uport, hints);
  			if (s < 0)
  				err(1, NULL);
@@ -35,7 +37,7 @@ Subject: [PATCH] verbose numeric port
  			/*
  			 * For UDP, we will use recvfrom() initially
  			 * to wait for a caller, then use the regular
-@@ -432,16 +445,15 @@
+@@ -432,16 +445,15 @@ main(int argc, char *argv[])
  			if (uflag) {
  				int rv, plen;
  				char buf[16384];
@@ -55,7 +57,7 @@ Subject: [PATCH] verbose numeric port
  				if (rv < 0)
  					err(1, "connect");
  
-@@ -450,6 +462,45 @@
+@@ -450,6 +462,45 @@ main(int argc, char *argv[])
  				len = sizeof(cliaddr);
  				connfd = accept(s, (struct sockaddr *)&cliaddr,
  				    &len);
@@ -101,3 +103,4 @@ Subject: [PATCH] verbose numeric port
  				readwrite(connfd);
  				close(connfd);
  			}
+-- 

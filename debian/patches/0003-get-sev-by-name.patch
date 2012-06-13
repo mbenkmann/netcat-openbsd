@@ -1,13 +1,13 @@
 From: Aron Xu <aron@debian.org>
 Date: Mon, 13 Feb 2012 14:45:08 +0800
-Subject: [PATCH] get sev by name
+Subject: get sev by name
 
 ---
  netcat.c |    9 ++++++++-
- 1 files changed, 8 insertions(+), 1 deletions(-)
+ 1 file changed, 8 insertions(+), 1 deletion(-)
 
 diff --git a/netcat.c b/netcat.c
-index 51a5729..28e871e 100644
+index f3cc8c1..d912544 100644
 --- a/netcat.c
 +++ b/netcat.c
 @@ -949,12 +949,19 @@ atelnet(int nfd, unsigned char *buf, unsigned int size)

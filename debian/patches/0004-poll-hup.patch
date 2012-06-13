@@ -1,13 +1,13 @@
 From: Aron Xu <aron@debian.org>
 Date: Mon, 13 Feb 2012 15:08:33 +0800
-Subject: [PATCH] poll hup
+Subject: poll hup
 
 ---
  netcat.c |   24 +++++++++++++++++-------
- 1 files changed, 17 insertions(+), 7 deletions(-)
+ 1 file changed, 17 insertions(+), 7 deletions(-)
 
 diff --git a/netcat.c b/netcat.c
-index 28e871e..b36583f 100644
+index d912544..fdaca44 100644
 --- a/netcat.c
 +++ b/netcat.c
 @@ -884,9 +884,7 @@ readwrite(int nfd)

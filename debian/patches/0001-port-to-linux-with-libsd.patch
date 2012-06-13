@@ -1,14 +1,16 @@
 From: Aron Xu <aron@debian.org>
 Date: Mon, 13 Feb 2012 15:59:31 +0800
-Subject: [PATCH] port to linux with libsd
+Subject: port to linux with libsd
 
 ---
- Makefile |   17 +++++++++-
- nc.1     |    2 +-
- netcat.c |  105 +++++++++++++++++++++++++++++++++++++++++++++++++++++--------
- socks.c  |   46 +++++++++++++-------------
- 4 files changed, 130 insertions(+), 40 deletions(-)
+ Makefile |   17 ++++++++--
+ nc.1     |    4 +--
+ netcat.c |  105 +++++++++++++++++++++++++++++++++++++++++++++++++++++---------
+ socks.c  |   46 +++++++++++++--------------
+ 4 files changed, 130 insertions(+), 42 deletions(-)
 
+diff --git a/Makefile b/Makefile
+index 150f829..96a6587 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -1,6 +1,19 @@
@@ -33,9 +35,11 @@ Subject: [PATCH] port to linux with libsd
 +
 +clean:
 +	rm -f $(OBJS) nc
+diff --git a/nc.1 b/nc.1
+index 75d1437..b7014a2 100644
 --- a/nc.1
 +++ b/nc.1
-@@ -146,9 +146,6 @@
+@@ -146,9 +146,6 @@ Proxy authentication is only supported for HTTP CONNECT proxies at present.
  Specifies the source port
  .Nm
  should use, subject to privilege restrictions and availability.
@@ -45,7 +49,7 @@ Subject: [PATCH] port to linux with libsd
  .It Fl r
  Specifies that source and/or destination ports should be chosen randomly
  instead of sequentially within a range or in the order that the system
-@@ -170,6 +167,7 @@
+@@ -170,6 +167,7 @@ Change IPv4 TOS value.
  may be one of
  .Ar critical ,
  .Ar inetcontrol ,
@@ -53,6 +57,8 @@ Subject: [PATCH] port to linux with libsd
  .Ar lowdelay ,
  .Ar netcontrol ,
  .Ar throughput ,
+diff --git a/netcat.c b/netcat.c
+index cc4683a..9b2def2 100644
 --- a/netcat.c
 +++ b/netcat.c
 @@ -42,6 +42,46 @@
@@ -111,7 +117,7 @@ Subject: [PATCH] port to linux with libsd
  #include "atomicio.h"
  
  #ifndef SUN_LEN
-@@ -118,7 +160,7 @@
+@@ -118,7 +160,7 @@ main(int argc, char *argv[])
  	struct servent *sv;
  	socklen_t len;
  	struct sockaddr_storage cliaddr;
@@ -120,7 +126,7 @@ Subject: [PATCH] port to linux with libsd
  	const char *errstr, *proxyhost = "", *proxyport = NULL;
  	struct addrinfo proxyhints;
  	char unix_dg_tmp_socket_buf[UNIX_DG_TMP_SOCKET_SIZE];
-@@ -164,7 +206,11 @@
+@@ -164,7 +206,11 @@ main(int argc, char *argv[])
  				errx(1, "interval %s: %s", errstr, optarg);
  			break;
  		case 'j':
@@ -132,7 +138,7 @@ Subject: [PATCH] port to linux with libsd
  			break;
  		case 'k':
  			kflag = 1;
-@@ -194,10 +240,14 @@
+@@ -194,10 +240,14 @@ main(int argc, char *argv[])
  			uflag = 1;
  			break;
  		case 'V':
@@ -147,7 +153,7 @@ Subject: [PATCH] port to linux with libsd
  			break;
  		case 'v':
  			vflag = 1;
-@@ -232,7 +282,11 @@
+@@ -232,7 +282,11 @@ main(int argc, char *argv[])
  				    errstr, optarg);
  			break;
  		case 'S':
@@ -159,7 +165,7 @@ Subject: [PATCH] port to linux with libsd
  			break;
  		case 'T':
  			errstr = NULL;
-@@ -259,6 +313,15 @@
+@@ -259,6 +313,15 @@ main(int argc, char *argv[])
  	if (argv[0] && !argv[1] && family == AF_UNIX) {
  		host = argv[0];
  		uport = NULL;
@@ -175,7 +181,7 @@ Subject: [PATCH] port to linux with libsd
  	} else if (argv[0] && !argv[1]) {
  		if  (!lflag)
  			usage(1);
-@@ -270,14 +333,7 @@
+@@ -270,14 +333,7 @@ main(int argc, char *argv[])
  	} else
  		usage(1);
  
@@ -191,7 +197,7 @@ Subject: [PATCH] port to linux with libsd
  
  	/* Get name of temporary socket for unix datagram client */
  	if ((family == AF_UNIX) && uflag && !lflag) {
-@@ -286,8 +342,8 @@
+@@ -286,8 +342,8 @@ main(int argc, char *argv[])
  		} else {
  			strlcpy(unix_dg_tmp_socket_buf, "/tmp/nc.XXXXXXXXXX",
  				UNIX_DG_TMP_SOCKET_SIZE);
@@ -202,7 +208,7 @@ Subject: [PATCH] port to linux with libsd
  			unix_dg_tmp_socket = unix_dg_tmp_socket_buf;
  		}
  	}
-@@ -563,18 +619,22 @@
+@@ -563,18 +619,22 @@ remote_connect(const char *host, const char *port, struct addrinfo hints)
  		    res0->ai_protocol)) < 0)
  			continue;
  
@@ -225,7 +231,7 @@ Subject: [PATCH] port to linux with libsd
  			memset(&ahints, 0, sizeof(struct addrinfo));
  			ahints.ai_family = res0->ai_family;
  			ahints.ai_socktype = uflag ? SOCK_DGRAM : SOCK_STREAM;
-@@ -674,15 +734,23 @@
+@@ -674,15 +734,23 @@ local_listen(char *host, char *port, struct addrinfo hints)
  		    res0->ai_protocol)) < 0)
  			continue;
  
@@ -249,7 +255,7 @@ Subject: [PATCH] port to linux with libsd
  
  		set_common_sockopts(s);
  
-@@ -886,21 +954,25 @@
+@@ -886,21 +954,25 @@ set_common_sockopts(int s)
  {
  	int x = 1;
  
@@ -275,7 +281,7 @@ Subject: [PATCH] port to linux with libsd
  	if (Tflag != -1) {
  		if (setsockopt(s, IPPROTO_IP, IP_TOS,
  		    &Tflag, sizeof(Tflag)) == -1)
-@@ -949,6 +1021,7 @@
+@@ -949,6 +1021,7 @@ map_tos(char *s, int *val)
  		{ "cs7",		IPTOS_DSCP_CS7 },
  		{ "ef",			IPTOS_DSCP_EF },
  		{ "inetcontrol",	IPTOS_PREC_INTERNETCONTROL },
@@ -283,7 +289,7 @@ Subject: [PATCH] port to linux with libsd
  		{ "lowdelay",		IPTOS_LOWDELAY },
  		{ "netcontrol",		IPTOS_PREC_NETCONTROL },
  		{ "reliability",	IPTOS_RELIABILITY },
-@@ -969,6 +1042,9 @@
+@@ -969,6 +1042,9 @@ map_tos(char *s, int *val)
  void
  help(void)
  {
@@ -293,7 +299,7 @@ Subject: [PATCH] port to linux with libsd
  	usage(0);
  	fprintf(stderr, "\tCommand Summary:\n\
  	\t-4		Use IPv4\n\
-@@ -978,6 +1054,7 @@
+@@ -978,6 +1054,7 @@ help(void)
  	\t-h		This help text\n\
  	\t-I length	TCP receive buffer length\n\
  	\t-i secs\t	Delay interval for lines sent, ports scanned\n\
@@ -301,7 +307,7 @@ Subject: [PATCH] port to linux with libsd
  	\t-k		Keep inbound sockets open for multiple connects\n\
  	\t-l		Listen mode, for inbound connects\n\
  	\t-n		Suppress name/port resolutions\n\
-@@ -998,15 +1075,15 @@
+@@ -998,15 +1075,15 @@ help(void)
  	\t-x addr[:port]\tSpecify proxy address and port\n\
  	\t-z		Zero-I/O mode [used for scanning]\n\
  	Port numbers can be individual or ranges: lo-hi [inclusive]\n");
@@ -320,6 +326,8 @@ Subject: [PATCH] port to linux with libsd
  	    "\t  [-V rtable] [-w timeout] [-X proxy_protocol]\n"
  	    "\t  [-x proxy_address[:port]] [destination] [port]\n");
  	if (ret)
+diff --git a/socks.c b/socks.c
+index 71108d5..befd0a9 100644
 --- a/socks.c
 +++ b/socks.c
 @@ -38,7 +38,7 @@
@@ -331,7 +339,7 @@ Subject: [PATCH] port to linux with libsd
  #include "atomicio.h"
  
  #define SOCKS_PORT	"1080"
-@@ -167,11 +167,11 @@
+@@ -167,11 +167,11 @@ socks_connect(const char *host, const char *port,
  		buf[2] = SOCKS_NOAUTH;
  		cnt = atomicio(vwrite, proxyfd, buf, 3);
  		if (cnt != 3)
@@ -345,7 +353,7 @@ Subject: [PATCH] port to linux with libsd
  
  		if (buf[1] == SOCKS_NOMETHOD)
  			errx(1, "authentication method negotiation failed");
-@@ -220,23 +220,23 @@
+@@ -220,23 +220,23 @@ socks_connect(const char *host, const char *port,
  
  		cnt = atomicio(vwrite, proxyfd, buf, wlen);
  		if (cnt != wlen)
@@ -373,7 +381,7 @@ Subject: [PATCH] port to linux with libsd
  			break;
  		default:
  			errx(1, "connection failed, unsupported address type");
-@@ -256,11 +256,11 @@
+@@ -256,11 +256,11 @@ socks_connect(const char *host, const char *port,
  
  		cnt = atomicio(vwrite, proxyfd, buf, wlen);
  		if (cnt != wlen)
@@ -387,7 +395,7 @@ Subject: [PATCH] port to linux with libsd
  		if (buf[1] != 90)
  			errx(1, "connection failed, SOCKS error %d", buf[1]);
  	} else if (socksv == -1) {
-@@ -272,39 +272,39 @@
+@@ -272,39 +272,39 @@ socks_connect(const char *host, const char *port,
  
  		/* Try to be sane about numeric IPv6 addresses */
  		if (strchr(host, ':') != NULL) {
@@ -436,7 +444,7 @@ Subject: [PATCH] port to linux with libsd
  		}
  
  		/* Terminate headers */
-@@ -312,22 +312,22 @@
+@@ -312,22 +312,22 @@ socks_connect(const char *host, const char *port,
  			err(1, "write failed (2/%d)", r);
  
  		/* Read status reply */
@@ -464,3 +472,4 @@ Subject: [PATCH] port to linux with libsd
  			if (*buf == '\0')
  				break;
  		}
+-- 

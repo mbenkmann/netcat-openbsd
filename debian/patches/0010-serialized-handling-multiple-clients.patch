@@ -1,14 +1,16 @@
 From: Aron Xu <aron@debian.org>
 Date: Tue, 14 Feb 2012 23:02:00 +0800
-Subject: [PATCH] serialized handling multiple clients
+Subject: serialized handling multiple clients
 
 ---
- netcat.c |   18 +++++++++---------
- 1 files changed, 9 insertions(+), 9 deletions(-)
+ netcat.c |   39 +++++++++++++++++++--------------------
+ 1 file changed, 19 insertions(+), 20 deletions(-)
 
+diff --git a/netcat.c b/netcat.c
+index 56cc15e..bf9940f 100644
 --- a/netcat.c
 +++ b/netcat.c
-@@ -447,26 +447,24 @@
+@@ -447,26 +447,24 @@ main(int argc, char *argv[])
  				s = unix_bind(host);
  			else
  				s = unix_listen(host);
@@ -34,7 +36,7 @@ Subject: [PATCH] serialized handling multiple clients
 -				s = local_listen(host, uport, hints);
 -			if (s < 0)
 -				err(1, NULL);
--
+ 
 -			char* local;
 -			if (family == AF_INET6 )
 -				local = "0.0.0.0";
@@ -46,11 +48,10 @@ Subject: [PATCH] serialized handling multiple clients
 -				host ?: local,
 -				family,
 -				*uport);
-+
  			/*
  			 * For UDP, we will use recvfrom() initially
  			 * to wait for a caller, then use the regular
-@@ -536,15 +534,16 @@
+@@ -536,15 +534,16 @@ main(int argc, char *argv[])
  				close(connfd);
  			}
  
@@ -71,3 +72,4 @@ Subject: [PATCH] serialized handling multiple clients
  		}
  	} else if (family == AF_UNIX) {
  		ret = 0;
+-- 
