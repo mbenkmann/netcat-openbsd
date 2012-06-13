@@ -1,3 +1,9 @@
+netcat-openbsd (1.105-7) unstable; urgency=low
+
+  * Make UNIX dgram sockets work (Closes: #676997).
+
+ -- Aron Xu <aron@debian.org>  Wed, 13 Jun 2012 09:01:43 +0800
+
 netcat-openbsd (1.105-6) unstable; urgency=low
 
   * Fix segfaults when using -Ulv (Closes: #668558).
