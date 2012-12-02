@@ -1,12 +1,27 @@
 From: Aron Xu <aron@debian.org>
 Date: Mon, 13 Feb 2012 19:06:52 +0800
-Subject: misc connection failures
+Subject: misc failures and features
 
 ---
+ Makefile |    3 +-
  nc.1     |   76 ++++++++++++++++++++++++++++++++++++---
  netcat.c |  119 ++++++++++++++++++++++++++++++++++++++++++--------------------
- 2 files changed, 153 insertions(+), 42 deletions(-)
+ 3 files changed, 155 insertions(+), 43 deletions(-)
 
+diff --git a/Makefile b/Makefile
+index 96a6587..becd854 100644
+--- a/Makefile
++++ b/Makefile
+@@ -3,7 +3,8 @@
+ PROG=	nc
+ SRCS=	netcat.c atomicio.c socks.c
+
+-LIBS=  `pkg-config --libs libbsd` -lresolv
++PKG_CONFIG ?= pkg-config
++LIBS=  `$(PKG_CONFIG) --libs libbsd` -lresolv
+ OBJS=  $(SRCS:.c=.o)
+ CFLAGS=  -g -O2
+ LDFLAGS=  -Wl,--no-add-needed
 diff --git a/nc.1 b/nc.1
 index 60e3668..477cb1b 100644
 --- a/nc.1

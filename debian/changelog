@@ -1,3 +1,9 @@
+netcat-openbsd (1.105-8) UNRELEASED; urgency=low
+
+  * Fix cross build ,thanks Colin Watson. (Closes: #694844)
+
+ -- Aron Xu <aron@debian.org>  Sun, 02 Dec 2012 18:49:04 +0800
+
 netcat-openbsd (1.105-7) unstable; urgency=low
 
   * Make UNIX dgram sockets work (Closes: #676997).
