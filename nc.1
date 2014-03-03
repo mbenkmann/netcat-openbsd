@@ -37,6 +37,7 @@
 .Op Fl 46bCDdhklnrStUuvZz
 .Op Fl I Ar length
 .Op Fl i Ar interval
+.Op Fl H Ar header Ns : Ns Ar value
 .Op Fl O Ar length
 .Op Fl P Ar proxy_username
 .Op Fl p Ar source_port
@@ -107,6 +108,15 @@ Send CRLF as line-ending.
 Enable debugging on the socket.
 .It Fl d
 Do not attempt to read from stdin.
+.It Fl H Ar header Ns : Ns Ar value
+Adds
+.Dq Ar header Ns : Ar value Ns \er\en
+to the HTTP request when talking to a CONNECT proxy.
+.Fl H
+may be used multiple times to add more than one header.
+This option is particularly useful to add a
+.Dq User-Agent
+header because some proxies insist on it.
 .It Fl h
 Prints out
 .Nm

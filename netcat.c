@@ -155,7 +155,7 @@ void	readwrite(int);
 int	remote_connect(const char *, const char *, struct addrinfo);
 int	timeout_connect(int, const struct sockaddr *, socklen_t);
 int	socks_connect(const char *, const char *, struct addrinfo,
-	    const char *, const char *, struct addrinfo, int, const char *);
+	    const char *, const char *, struct addrinfo, int, const char *, char*);
 int	udptest(int);
 int	unix_bind(char *);
 int	unix_connect(char *);
@@ -173,6 +173,7 @@ int
 main(int argc, char *argv[])
 {
 	int ch, s, ret, socksv;
+	char *cptr;
 	char *host, **uport;
 	struct addrinfo hints;
 	struct servent *sv;
@@ -183,6 +184,7 @@ main(int argc, char *argv[])
 	} cliaddr;
 	char *proxy = NULL;
 	const char *errstr, *proxyhost = "", *proxyport = NULL;
+	char* headers = NULL;
 	struct addrinfo proxyhints;
 	char unix_dg_tmp_socket_buf[UNIX_DG_TMP_SOCKET_SIZE];
 
@@ -194,7 +196,7 @@ main(int argc, char *argv[])
 	sv = NULL;
 
 	while ((ch = getopt(argc, argv,
-	    "46bCDdhI:i:jklnO:P:p:q:rSs:tT:UuV:vw:X:x:Zz")) != -1) {
+	    "46bCDdhH:I:i:jklnO:P:p:q:rSs:tT:UuV:vw:X:x:Zz")) != -1) {
 		switch (ch) {
 		case '4':
 			family = AF_INET;
@@ -221,6 +223,24 @@ main(int argc, char *argv[])
 				socksv = 5; /* SOCKS v.5 */
 			else
 				errx(1, "unsupported proxy protocol");
+			break;
+		case 'H':
+			cptr = index(optarg, ':');
+			if (cptr == NULL)
+				errx(1, "missing ':' in -H argument: %s", optarg);
+			
+			if (headers == NULL)
+				headers = malloc(strlen(optarg) + 1 + 2 + 1); /* space, \r\n, \0 */
+			else
+				headers = realloc(headers, strlen(headers) + strlen(optarg) + 1 + 2 + 1);
+			
+			if (headers == NULL)
+				err(1, NULL);
+			
+			strncat(headers, optarg, cptr-optarg);
+			strcat(headers, ": ");
+			strcat(headers, cptr+1);
+			strcat(headers, "\r\n");
 			break;
 		case 'd':
 			dflag = 1;
@@ -598,7 +618,7 @@ main(int argc, char *argv[])
 			if (xflag)
 				s = socks_connect(host, portlist[i], hints,
 				    proxyhost, proxyport, proxyhints, socksv,
-				    Pflag);
+				    Pflag, headers);
 			else
 				s = remote_connect(host, portlist[i], hints);
 
@@ -1372,10 +1392,10 @@ void
 usage(int ret)
 {
 	fprintf(stderr,
-	    "usage: nc [-46bCDdhjklnrStUuvZz] [-I length] [-i interval] [-O length]\n"
-	    "\t  [-P proxy_username] [-p source_port] [-q seconds] [-s source]\n"
-	    "\t  [-T toskeyword] [-V rtable] [-w timeout] [-X proxy_protocol]\n"
-	    "\t  [-x proxy_address[:port]] [destination] [port]\n");
+	    "usage: nc [-46bCDdhjklnrStUuvZz] [-I length] [-i interval] [-H header:value]\n"
+	    "\t  [-O length] [-P proxy_username] [-p source_port] [-q seconds]\n"
+	    "\t  [-s source] [-T toskeyword] [-V rtable] [-w timeout]\n"
+	    "\t  [-X proxy_protocol] [-x proxy_address[:port]] [destination] [port]\n");
 	if (ret)
 		exit(1);
 }

@@ -56,7 +56,7 @@
 int	remote_connect(const char *, const char *, struct addrinfo);
 int	socks_connect(const char *, const char *, struct addrinfo,
 	    const char *, const char *, struct addrinfo, int,
-	    const char *);
+	    const char *, char*);
 
 static int
 decode_addrport(const char *h, const char *p, struct sockaddr *addr,
@@ -126,7 +126,7 @@ int
 socks_connect(const char *host, const char *port,
     struct addrinfo hints __attribute__ ((__unused__)),
     const char *proxyhost, const char *proxyport, struct addrinfo proxyhints,
-    int socksv, const char *proxyuser)
+    int socksv, const char *proxyuser, char* headers)
 {
 	int proxyfd, r, authretry = 0;
 	size_t hlen, wlen;
@@ -306,6 +306,13 @@ socks_connect(const char *host, const char *port,
 			if ((cnt = atomicio(vwrite, proxyfd, buf, r)) != r)
 				err(1, "write failed (%zu/%d)", (size_t)cnt, r);
 		}
+
+		/* Send additional -H headers, if any */
+		if (headers != NULL) {
+		        r = strlen(headers);
+			if ((cnt = atomicio(vwrite, proxyfd, (void*)headers, r)) != r)
+				err(1, "write failed (%zu/%d)", (size_t)cnt, r);
+                }
 
 		/* Terminate headers */
 		if ((r = atomicio(vwrite, proxyfd, "\r\n", 2)) != 2)
