@@ -9,3 +9,4 @@
 0009-dccp-support.patch
 0010-serialized-handling-multiple-clients.patch
 0011-misc-failures-and-features.patch
+0012-optional-headers-for-proxy-connect.patch
