@@ -10,3 +10,4 @@
 0010-serialized-handling-multiple-clients.patch
 0011-misc-failures-and-features.patch
 0012-optional-headers-for-proxy-connect.patch
+0013-k-switch-without-l-to-keep-connecting.patch
