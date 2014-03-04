@@ -1360,6 +1360,7 @@ help(void)
 	\t-D		Enable the debug socket option\n\
 	\t-d		Detach from stdin\n\
 	\t-h		This help text\n\
+	\t-H header:value\tAdd HTTP header when CONNECTing to proxy\n\
 	\t-I length	TCP receive buffer length\n\
 	\t-i secs\t	Delay interval for lines sent, ports scanned\n\
 	\t-j		Use jumbo frame\n\
