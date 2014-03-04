@@ -126,7 +126,8 @@ int	lflag;					/* Bind to local port */
 int	nflag;					/* Don't do name look up */
 char   *Pflag;					/* Proxy username */
 char   *pflag;					/* Localport flag */
-int     qflag = 0;                             /* Quit after some secs */
+int     qflag = 0;                              /* Quit after ... */
+int	qtime = 0;				/* ... this many seconds */
 int	rflag;					/* Random ports flag */
 char   *sflag;					/* Source Address */
 int	tflag;					/* Telnet Emulation */
@@ -276,7 +277,8 @@ main(int argc, char *argv[])
 			pflag = optarg;
 			break;
                 case 'q':
-			qflag = strtonum(optarg, INT_MIN, INT_MAX, &errstr);
+			qflag = 1;
+			qtime = strtonum(optarg, INT_MIN, INT_MAX, &errstr);
 			if (errstr)
 				errx(1, "quit timer %s: %s", errstr, optarg);
 			break;
@@ -406,8 +408,7 @@ main(int argc, char *argv[])
 			/* This still does not work well because of getopt mess
 			errx(1, "cannot use -p and -l"); */
 			uport = &pflag;
-	} else if (!lflag && kflag)
-		errx(1, "cannot use -k without -l");
+	}
 
 	/* Get name of temporary socket for unix datagram client */
 	if ((family == AF_UNIX) && uflag && !lflag) {
@@ -592,18 +593,24 @@ main(int argc, char *argv[])
 			break;
 		}
 	} else if (family == AF_UNIX) {
-		ret = 0;
+		for (;;) {
+			ret = 0;
 
-		if ((s = unix_connect(host)) > 0 && !zflag) {
-			readwrite(s);
-			close(s);
-		} else
-			ret = 1;
+			if ((s = unix_connect(host)) > 0 && !zflag) {
+				readwrite(s);
+				close(s);
+			} else
+				ret = 1;
+		
+			if (!kflag || ret)
+				break;
 
+			if (vflag)
+				fprintf(stderr, "Connection closed, re-connecting.\n");
+		}	
 		if (uflag)
 			unlink(unix_dg_tmp_socket);
 		exit(ret);
-
 	} else {
 		int i = 0;
 
@@ -611,7 +618,10 @@ main(int argc, char *argv[])
 		build_ports(uport);
 
 		/* Cycle through portlist, connecting to each port. */
-		for (i = 0; portlist[i] != NULL; i++) {
+		for (i = 0; (portlist[i] != NULL) || ((i > 0) && kflag); i++) {
+			if (portlist[i] == NULL)
+				i = 0;
+			
 			if (s)
 				close(s);
 
@@ -1103,15 +1113,16 @@ readwrite(int nfd)
 			}
 			else if (pfd[1].revents & POLLHUP) {
 			shutdown_wr:
+			shutdown(nfd, SHUT_WR);
+			if (!qflag)
+				return;
 			/* if the user asked to exit on EOF, do it */
-			if (qflag == 0) {
-				shutdown(nfd, SHUT_WR);
-				close(wfd);
-			}
+			if (qtime == 0)
+				quit();
 			/* if user asked to die after a while, arrange for it */
-			if (qflag > 0) {
+			if (qtime > 0) {
 				signal(SIGALRM, quit);
-				alarm(qflag);
+				alarm(qtime);
 			}
 			pfd[1].fd = -1;
 			pfd[1].events = 0;
@@ -1364,7 +1375,7 @@ help(void)
 	\t-I length	TCP receive buffer length\n\
 	\t-i secs\t	Delay interval for lines sent, ports scanned\n\
 	\t-j		Use jumbo frame\n\
-	\t-k		Keep inbound sockets open for multiple connects\n\
+	\t-k		Keep re-connecting/listening after connections close\n\
 	\t-l		Listen mode, for inbound connects\n\
 	\t-n		Suppress name/port resolutions\n\
 	\t-O length	TCP send buffer length\n\
