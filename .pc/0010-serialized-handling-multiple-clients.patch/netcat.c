@@ -88,7 +88,6 @@
 #include <netdb.h>
 #include <poll.h>
 #include <signal.h>
-#include <stddef.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -116,7 +115,6 @@
 #define UDP_SCAN_TIMEOUT 3			/* Seconds */
 
 /* Command Line Options */
-int	bflag;					/* Allow Broadcast */
 int     Cflag = 0;                              /* CRLF line-ending */
 int	dflag;					/* detached, no stdin */
 unsigned int iflag;				/* Interval Flag */
@@ -148,14 +146,14 @@ char *portlist[PORT_MAX+1];
 char *unix_dg_tmp_socket;
 
 void	atelnet(int, unsigned char *, unsigned int);
-void	build_ports(char **);
+void	build_ports(char *);
 void	help(void);
 int	local_listen(char *, char *, struct addrinfo);
 void	readwrite(int);
 int	remote_connect(const char *, const char *, struct addrinfo);
 int	timeout_connect(int, const struct sockaddr *, socklen_t);
 int	socks_connect(const char *, const char *, struct addrinfo,
-	    const char *, const char *, struct addrinfo, int, const char *, char*);
+	    const char *, const char *, struct addrinfo, int, const char *);
 int	udptest(int);
 int	unix_bind(char *);
 int	unix_connect(char *);
@@ -173,18 +171,13 @@ int
 main(int argc, char *argv[])
 {
 	int ch, s, ret, socksv;
-	char *cptr;
-	char *host, **uport;
+	char *host, *uport;
 	struct addrinfo hints;
 	struct servent *sv;
 	socklen_t len;
-	union {
-        	struct sockaddr_storage storage;
-		struct sockaddr_un forunix;
-	} cliaddr;
+	struct sockaddr_storage cliaddr;
 	char *proxy = NULL;
 	const char *errstr, *proxyhost = "", *proxyport = NULL;
-	char* headers = NULL;
 	struct addrinfo proxyhints;
 	char unix_dg_tmp_socket_buf[UNIX_DG_TMP_SOCKET_SIZE];
 
@@ -196,20 +189,13 @@ main(int argc, char *argv[])
 	sv = NULL;
 
 	while ((ch = getopt(argc, argv,
-	    "46bCDdhH:I:i:jklnO:P:p:q:rSs:tT:UuV:vw:X:x:Zz")) != -1) {
+	    "46CDdhI:i:jklnO:P:p:q:rSs:tT:UuV:vw:X:x:Zz")) != -1) {
 		switch (ch) {
 		case '4':
 			family = AF_INET;
 			break;
 		case '6':
 			family = AF_INET6;
-			break;
-		case 'b':
-# if defined(SO_BROADCAST)
-			bflag = 1;
-# else
-			errx(1, "no broadcast frame support available");
-# endif
 			break;
 		case 'U':
 			family = AF_UNIX;
@@ -223,24 +209,6 @@ main(int argc, char *argv[])
 				socksv = 5; /* SOCKS v.5 */
 			else
 				errx(1, "unsupported proxy protocol");
-			break;
-		case 'H':
-			cptr = index(optarg, ':');
-			if (cptr == NULL)
-				errx(1, "missing ':' in -H argument: %s", optarg);
-
-			if (headers == NULL)
-				headers = malloc(strlen(optarg) + 1 + 2 + 1); /* space, \r\n, \0 */
-			else
-				headers = realloc(headers, strlen(headers) + strlen(optarg) + 1 + 2 + 1);
-
-			if (headers == NULL)
-				err(1, NULL);
-
-			strncat(headers, optarg, cptr-optarg);
-			strcat(headers, ": ");
-			strcat(headers, cptr+1);
-			strcat(headers, "\r\n");
 			break;
 		case 'd':
 			dflag = 1;
@@ -374,40 +342,35 @@ main(int argc, char *argv[])
 
 	/* Cruft to make sure options are clean, and used properly. */
 	if (argv[0] && !argv[1] && family == AF_UNIX) {
+ 		if (uflag)
+ 			errx(1, "cannot use -u and -U");
 # if defined(IPPROTO_DCCP) && defined(SOCK_DCCP)
 		if (dccpflag)
 			errx(1, "cannot use -Z and -U");
 # endif
 		host = argv[0];
 		uport = NULL;
-	} else if (argv[0] && !argv[1] && lflag) {
-		if (pflag) {
-			uport = &pflag;
-			host = argv[0];
-		} else {
-			uport = argv;
-			host = NULL;
-		}
-	} else if (!argv[0] && lflag && pflag) {
-		uport = &pflag;
-		host = NULL;
-	} else if (argv[0] && argv[1]) {
-		host = argv[0];
-		uport = &argv[1];
-	} else
-		usage(1);
-
-	if (lflag) {
+	} else if (!argv[0] && lflag) {
 		if (sflag)
 			errx(1, "cannot use -s and -l");
 		if (zflag)
 			errx(1, "cannot use -z and -l");
 		if (pflag)
-			/* This still does not work well because of getopt mess
-			errx(1, "cannot use -p and -l"); */
-			uport = &pflag;
-	} else if (!lflag && kflag)
+			uport=pflag;
+	} else if (!lflag && kflag) {
 		errx(1, "cannot use -k without -l");
+	} else if (argv[0] && !argv[1]) {
+		if  (!lflag)
+			usage(1);
+		uport = argv[0];
+		host = NULL;
+	} else if (argv[0] && argv[1]) {
+		host = argv[0];
+		uport = argv[1];
+	} else
+		usage(1);
+
+
 
 	/* Get name of temporary socket for unix datagram client */
 	if ((family == AF_UNIX) && uflag && !lflag) {
@@ -484,25 +447,26 @@ main(int argc, char *argv[])
 				s = unix_bind(host);
 			else
 				s = unix_listen(host);
-		} else
-			s = local_listen(host, *uport, hints);
-		if (s < 0)
-			err(1, NULL);
-
-		char* local;
-		if (family == AF_INET6)
-			local = ":::";
-		else
-			local = "0.0.0.0";
-		if (vflag && (family != AF_UNIX))
-		fprintf(stderr, "Listening on [%s] (family %d, port %s)\n",
-			host ?: local,
-			family,
-			*uport);
+		}
 
 		/* Allow only one connection at a time, but stay alive. */
 		for (;;) {
+			if (family != AF_UNIX)
+				s = local_listen(host, uport, hints);
+			if (s < 0)
+				err(1, NULL);
 
+			char* local;
+			if (family == AF_INET6 )
+				local = "0.0.0.0";
+			else if (family == AF_INET)
+				local = ":::";
+			else
+				local = "unknown";
+			fprintf(stderr, "Listening on [%s] (family %d, port %d)\n",
+				host ?: local,
+				family,
+				*uport);
 			/*
 			 * For UDP, we will use recvfrom() initially
 			 * to wait for a caller, then use the regular
@@ -528,17 +492,13 @@ main(int argc, char *argv[])
 				len = sizeof(cliaddr);
 				connfd = accept(s, (struct sockaddr *)&cliaddr,
 				    &len);
-				if(vflag && family == AF_UNIX) {
-					fprintf(stderr, "Connection from \"%.*s\" accepted\n",
-						(len - (int)offsetof(struct sockaddr_un, sun_path)),
-						((struct sockaddr_un*)&cliaddr)->sun_path);
-				} else if(vflag) {
+				if(vflag) {
 					char *proto = proto_name(uflag, dccpflag);
 				/* Don't look up port if -n. */
 					if (nflag)
 						sv = NULL;
 					else
-						sv = getservbyport(ntohs(atoi(*uport)),
+						sv = getservbyport(ntohs(atoi(uport)),
 							proto);
 
 					if (((struct sockaddr *)&cliaddr)->sa_family == AF_INET) {
@@ -546,7 +506,7 @@ main(int argc, char *argv[])
 						inet_ntop(((struct sockaddr *)&cliaddr)->sa_family,&(((struct sockaddr_in *)&cliaddr)->sin_addr),dst,INET_ADDRSTRLEN);
 						fprintf(stderr, "Connection from [%s] port %s [%s/%s] accepted (family %d, sport %d)\n",
 							dst,
-							*uport,
+							uport,
 							proto,
 							sv ? sv->s_name : "*",
 							((struct sockaddr *)(&cliaddr))->sa_family,
@@ -557,7 +517,7 @@ main(int argc, char *argv[])
 						inet_ntop(((struct sockaddr *)&cliaddr)->sa_family,&(((struct sockaddr_in6 *)&cliaddr)->sin6_addr),dst,INET6_ADDRSTRLEN);
 						fprintf(stderr, "Connection from [%s] port %s [%s/%s] accepted (family %d, sport %d)\n",
 							dst,
-							*uport,
+							uport,
 							proto,
 							sv ? sv->s_name : "*",
 							((struct sockaddr *)&cliaddr)->sa_family,
@@ -565,31 +525,26 @@ main(int argc, char *argv[])
 					}
 					else {
 						fprintf(stderr, "Connection from unknown port %s [%s/%s] accepted (family %d, sport %d)\n",
-							*uport,
+							uport,
 							proto,
 							sv ? sv->s_name : "*",
 							((struct sockaddr *)(&cliaddr))->sa_family,
 							ntohs(((struct sockaddr_in *)&cliaddr)->sin_port));
 					}
 				}
-                                if(!kflag)
-                                        close(s);
 				readwrite(connfd);
 				close(connfd);
 			}
 
-			if (vflag && kflag)
-                                fprintf(stderr, "Connection closed, listening again.\n");
-			if (kflag)
-				continue;
-			if (family != AF_UNIX) {
+			if (family != AF_UNIX)
 				close(s);
-			}
 			else if (uflag) {
 				if (connect(s, NULL, 0) < 0)
 					err(1, "connect");
 			}
-			break;
+
+			if (!kflag)
+				break;
 		}
 	} else if (family == AF_UNIX) {
 		ret = 0;
@@ -618,7 +573,7 @@ main(int argc, char *argv[])
 			if (xflag)
 				s = socks_connect(host, portlist[i], hints,
 				    proxyhost, proxyport, proxyhints, socksv,
-				    Pflag, headers);
+				    Pflag);
 			else
 				s = remote_connect(host, portlist[i], hints);
 
@@ -687,8 +642,6 @@ unix_bind(char *path)
 		return (-1);
 	}
 
-        unlink(path);
-
 	if (bind(s, (struct sockaddr *)&sun, SUN_LEN(&sun)) < 0) {
 		close(s);
 		return (-1);
@@ -710,10 +663,8 @@ unix_connect(char *path)
 		if ((s = unix_bind(unix_dg_tmp_socket)) < 0)
 			return (-1);
 	} else {
-		if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
-                        errx(1,"create unix socket failed");
+		if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
 			return (-1);
-                }
 	}
 	(void)fcntl(s, F_SETFD, 1);
 
@@ -724,11 +675,9 @@ unix_connect(char *path)
 	    sizeof(sun.sun_path)) {
 		close(s);
 		errno = ENAMETOOLONG;
-                warn("unix connect abandoned");
 		return (-1);
 	}
 	if (connect(s, (struct sockaddr *)&sun, SUN_LEN(&sun)) < 0) {
-                warn("unix connect failed");
 		close(s);
 		return (-1);
 	}
@@ -1157,23 +1106,22 @@ atelnet(int nfd, unsigned char *buf, unsigned int size)
  * that we should try to connect to.
  */
 void
-build_ports(char **p)
+build_ports(char *p)
 {
         struct servent *sv;
 	const char *errstr;
 	char *n;
 	int hi, lo, cp;
 	int x = 0;
-	int i;
 
 	char *proto = proto_name(uflag, dccpflag);
-	sv = getservbyname(*p, proto);
+	sv = getservbyname(p, proto);
         if (sv) {
                 portlist[0] = calloc(1, PORT_MAX_LEN);
                 if (portlist[0] == NULL)
                         err(1, NULL);
                 snprintf(portlist[0], PORT_MAX_LEN, "%d", ntohs(sv->s_port));
-        } else if ((n = strchr(*p, '-')) != NULL) {
+        } else if ((n = strchr(p, '-')) != NULL) {
 		*n = '\0';
 		n++;
 
@@ -1181,9 +1129,9 @@ build_ports(char **p)
 		hi = strtonum(n, 1, PORT_MAX, &errstr);
 		if (errstr)
 			errx(1, "port number %s: %s", errstr, n);
-		lo = strtonum(*p, 1, PORT_MAX, &errstr);
+		lo = strtonum(p, 1, PORT_MAX, &errstr);
 		if (errstr)
-			errx(1, "port number %s: %s", errstr, *p);
+			errx(1, "port number %s: %s", errstr, p);
 
 		if (lo > hi) {
 			cp = hi;
@@ -1213,12 +1161,10 @@ build_ports(char **p)
 			}
 		}
 	} else {
-		hi = strtonum(*p, 1, PORT_MAX, &errstr);
+		hi = strtonum(p, 1, PORT_MAX, &errstr);
 		if (errstr)
-			errx(1, "port number %s: %s", errstr, *p);
-		for (i=0;p[i];i++) {
-			portlist[i] = strdup(p[i]);
-		}
+			errx(1, "port number %s: %s", errstr, p);
+		portlist[0] = strdup(p);
 		if (portlist[0] == NULL)
 			err(1, NULL);
 	}
@@ -1253,13 +1199,6 @@ set_common_sockopts(int s)
 {
 	int x = 1;
 
-# if defined(SO_BROADCAST)
-	if (bflag) {
-		if (setsockopt(s, IPPROTO_TCP, SO_BROADCAST,
-			&x, sizeof(x)) == -1)
-			err(1, NULL);
-	}
-# endif
 # if defined(TCP_MD5SIG)
 	if (Sflag) {
 		if (setsockopt(s, IPPROTO_TCP, TCP_MD5SIG,
@@ -1355,12 +1294,10 @@ help(void)
 	fprintf(stderr, "\tCommand Summary:\n\
 	\t-4		Use IPv4\n\
 	\t-6		Use IPv6\n\
-	\t-b		Allow broadcast\n\
 	\t-C		Send CRLF as line-ending\n\
 	\t-D		Enable the debug socket option\n\
 	\t-d		Detach from stdin\n\
 	\t-h		This help text\n\
-	\t-H header:value\tAdd HTTP header when CONNECTing to proxy\n\
 	\t-I length	TCP receive buffer length\n\
 	\t-i secs\t	Delay interval for lines sent, ports scanned\n\
 	\t-j		Use jumbo frame\n\
@@ -1393,10 +1330,10 @@ void
 usage(int ret)
 {
 	fprintf(stderr,
-	    "usage: nc [-46bCDdhjklnrStUuvZz] [-I length] [-i interval] [-H header:value]\n"
-	    "\t  [-O length] [-P proxy_username] [-p source_port] [-q seconds]\n"
-	    "\t  [-s source] [-T toskeyword] [-V rtable] [-w timeout]\n"
-	    "\t  [-X proxy_protocol] [-x proxy_address[:port]] [destination] [port]\n");
+	    "usage: nc [-46CDdhjklnrStUuvZz] [-I length] [-i interval] [-O length]\n"
+	    "\t  [-P proxy_username] [-p source_port] [-q seconds] [-s source]\n"
+	    "\t  [-T toskeyword] [-V rtable] [-w timeout] [-X proxy_protocol]\n"
+	    "\t  [-x proxy_address[:port]] [destination] [port]\n");
 	if (ret)
 		exit(1);
 }
