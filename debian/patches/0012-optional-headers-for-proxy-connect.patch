@@ -68,15 +68,15 @@
 +			cptr = index(optarg, ':');
 +			if (cptr == NULL)
 +				errx(1, "missing ':' in -H argument: %s", optarg);
-+			
++
 +			if (headers == NULL)
 +				headers = malloc(strlen(optarg) + 1 + 2 + 1); /* space, \r\n, \0 */
 +			else
 +				headers = realloc(headers, strlen(headers) + strlen(optarg) + 1 + 2 + 1);
-+			
++
 +			if (headers == NULL)
 +				err(1, NULL);
-+			
++
 +			strncat(headers, optarg, cptr-optarg);
 +			strcat(headers, ": ");
 +			strcat(headers, cptr+1);
@@ -94,7 +94,15 @@
  			else
  				s = remote_connect(host, portlist[i], hints);
  
-@@ -1372,10 +1392,10 @@
+@@ -1340,6 +1360,7 @@
+ 	\t-D		Enable the debug socket option\n\
+ 	\t-d		Detach from stdin\n\
+ 	\t-h		This help text\n\
++	\t-H header:value\tAdd HTTP header when CONNECTing to proxy\n\
+ 	\t-I length	TCP receive buffer length\n\
+ 	\t-i secs\t	Delay interval for lines sent, ports scanned\n\
+ 	\t-j		Use jumbo frame\n\
+@@ -1372,10 +1393,10 @@
  usage(int ret)
  {
  	fprintf(stderr,

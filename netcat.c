@@ -228,15 +228,15 @@ main(int argc, char *argv[])
 			cptr = index(optarg, ':');
 			if (cptr == NULL)
 				errx(1, "missing ':' in -H argument: %s", optarg);
-			
+
 			if (headers == NULL)
 				headers = malloc(strlen(optarg) + 1 + 2 + 1); /* space, \r\n, \0 */
 			else
 				headers = realloc(headers, strlen(headers) + strlen(optarg) + 1 + 2 + 1);
-			
+
 			if (headers == NULL)
 				err(1, NULL);
-			
+
 			strncat(headers, optarg, cptr-optarg);
 			strcat(headers, ": ");
 			strcat(headers, cptr+1);
