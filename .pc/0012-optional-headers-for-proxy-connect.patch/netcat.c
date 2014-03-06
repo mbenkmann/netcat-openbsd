@@ -126,8 +126,7 @@ int	lflag;					/* Bind to local port */
 int	nflag;					/* Don't do name look up */
 char   *Pflag;					/* Proxy username */
 char   *pflag;					/* Localport flag */
-int     qflag = 0;                              /* Quit after ... */
-int	qtime = 0;				/* ... this many seconds */
+int     qflag = 0;                             /* Quit after some secs */
 int	rflag;					/* Random ports flag */
 char   *sflag;					/* Source Address */
 int	tflag;					/* Telnet Emulation */
@@ -156,7 +155,7 @@ void	readwrite(int);
 int	remote_connect(const char *, const char *, struct addrinfo);
 int	timeout_connect(int, const struct sockaddr *, socklen_t);
 int	socks_connect(const char *, const char *, struct addrinfo,
-	    const char *, const char *, struct addrinfo, int, const char *, char*);
+	    const char *, const char *, struct addrinfo, int, const char *);
 int	udptest(int);
 int	unix_bind(char *);
 int	unix_connect(char *);
@@ -174,7 +173,6 @@ int
 main(int argc, char *argv[])
 {
 	int ch, s, ret, socksv;
-	char *cptr;
 	char *host, **uport;
 	struct addrinfo hints;
 	struct servent *sv;
@@ -185,7 +183,6 @@ main(int argc, char *argv[])
 	} cliaddr;
 	char *proxy = NULL;
 	const char *errstr, *proxyhost = "", *proxyport = NULL;
-	char* headers = NULL;
 	struct addrinfo proxyhints;
 	char unix_dg_tmp_socket_buf[UNIX_DG_TMP_SOCKET_SIZE];
 
@@ -197,7 +194,7 @@ main(int argc, char *argv[])
 	sv = NULL;
 
 	while ((ch = getopt(argc, argv,
-	    "46bCDdhH:I:i:jklnO:P:p:q:rSs:tT:UuV:vw:X:x:Zz")) != -1) {
+	    "46bCDdhI:i:jklnO:P:p:q:rSs:tT:UuV:vw:X:x:Zz")) != -1) {
 		switch (ch) {
 		case '4':
 			family = AF_INET;
@@ -224,24 +221,6 @@ main(int argc, char *argv[])
 				socksv = 5; /* SOCKS v.5 */
 			else
 				errx(1, "unsupported proxy protocol");
-			break;
-		case 'H':
-			cptr = index(optarg, ':');
-			if (cptr == NULL)
-				errx(1, "missing ':' in -H argument: %s", optarg);
-
-			if (headers == NULL)
-				headers = malloc(strlen(optarg) + 1 + 2 + 1); /* space, \r\n, \0 */
-			else
-				headers = realloc(headers, strlen(headers) + strlen(optarg) + 1 + 2 + 1);
-
-			if (headers == NULL)
-				err(1, NULL);
-
-			strncat(headers, optarg, cptr-optarg);
-			strcat(headers, ": ");
-			strcat(headers, cptr+1);
-			strcat(headers, "\r\n");
 			break;
 		case 'd':
 			dflag = 1;
@@ -277,8 +256,7 @@ main(int argc, char *argv[])
 			pflag = optarg;
 			break;
                 case 'q':
-			qflag = 1;
-			qtime = strtonum(optarg, INT_MIN, INT_MAX, &errstr);
+			qflag = strtonum(optarg, INT_MIN, INT_MAX, &errstr);
 			if (errstr)
 				errx(1, "quit timer %s: %s", errstr, optarg);
 			break;
@@ -408,7 +386,8 @@ main(int argc, char *argv[])
 			/* This still does not work well because of getopt mess
 			errx(1, "cannot use -p and -l"); */
 			uport = &pflag;
-	}
+	} else if (!lflag && kflag)
+		errx(1, "cannot use -k without -l");
 
 	/* Get name of temporary socket for unix datagram client */
 	if ((family == AF_UNIX) && uflag && !lflag) {
@@ -593,24 +572,18 @@ main(int argc, char *argv[])
 			break;
 		}
 	} else if (family == AF_UNIX) {
-		for (;;) {
-			ret = 0;
+		ret = 0;
 
-			if ((s = unix_connect(host)) > 0 && !zflag) {
-				readwrite(s);
-				close(s);
-			} else
-				ret = 1;
-		
-			if (!kflag || ret)
-				break;
+		if ((s = unix_connect(host)) > 0 && !zflag) {
+			readwrite(s);
+			close(s);
+		} else
+			ret = 1;
 
-			if (vflag)
-				fprintf(stderr, "Connection closed, re-connecting.\n");
-		}	
 		if (uflag)
 			unlink(unix_dg_tmp_socket);
 		exit(ret);
+
 	} else {
 		int i = 0;
 
@@ -618,17 +591,14 @@ main(int argc, char *argv[])
 		build_ports(uport);
 
 		/* Cycle through portlist, connecting to each port. */
-		for (i = 0; (portlist[i] != NULL) || ((i > 0) && kflag); i++) {
-			if (portlist[i] == NULL)
-				i = 0;
-			
+		for (i = 0; portlist[i] != NULL; i++) {
 			if (s)
 				close(s);
 
 			if (xflag)
 				s = socks_connect(host, portlist[i], hints,
 				    proxyhost, proxyport, proxyhints, socksv,
-				    Pflag, headers);
+				    Pflag);
 			else
 				s = remote_connect(host, portlist[i], hints);
 
@@ -1113,16 +1083,15 @@ readwrite(int nfd)
 			}
 			else if (pfd[1].revents & POLLHUP) {
 			shutdown_wr:
-			shutdown(nfd, SHUT_WR);
-			if (!qflag)
-				return;
 			/* if the user asked to exit on EOF, do it */
-			if (qtime == 0)
-				quit();
+			if (qflag == 0) {
+				shutdown(nfd, SHUT_WR);
+				close(wfd);
+			}
 			/* if user asked to die after a while, arrange for it */
-			if (qtime > 0) {
+			if (qflag > 0) {
 				signal(SIGALRM, quit);
-				alarm(qtime);
+				alarm(qflag);
 			}
 			pfd[1].fd = -1;
 			pfd[1].events = 0;
@@ -1371,11 +1340,10 @@ help(void)
 	\t-D		Enable the debug socket option\n\
 	\t-d		Detach from stdin\n\
 	\t-h		This help text\n\
-	\t-H header:value\tAdd HTTP header when CONNECTing to proxy\n\
 	\t-I length	TCP receive buffer length\n\
 	\t-i secs\t	Delay interval for lines sent, ports scanned\n\
 	\t-j		Use jumbo frame\n\
-	\t-k		Keep re-connecting/listening after connections close\n\
+	\t-k		Keep inbound sockets open for multiple connects\n\
 	\t-l		Listen mode, for inbound connects\n\
 	\t-n		Suppress name/port resolutions\n\
 	\t-O length	TCP send buffer length\n\
@@ -1404,10 +1372,10 @@ void
 usage(int ret)
 {
 	fprintf(stderr,
-	    "usage: nc [-46bCDdhjklnrStUuvZz] [-I length] [-i interval] [-H header:value]\n"
-	    "\t  [-O length] [-P proxy_username] [-p source_port] [-q seconds]\n"
-	    "\t  [-s source] [-T toskeyword] [-V rtable] [-w timeout]\n"
-	    "\t  [-X proxy_protocol] [-x proxy_address[:port]] [destination] [port]\n");
+	    "usage: nc [-46bCDdhjklnrStUuvZz] [-I length] [-i interval] [-O length]\n"
+	    "\t  [-P proxy_username] [-p source_port] [-q seconds] [-s source]\n"
+	    "\t  [-T toskeyword] [-V rtable] [-w timeout] [-X proxy_protocol]\n"
+	    "\t  [-x proxy_address[:port]] [destination] [port]\n");
 	if (ret)
 		exit(1);
 }

@@ -34,14 +34,12 @@
 .Sh SYNOPSIS
 .Nm nc
 .Bk -words
-.Op Fl 46bCDdhklnrStUuvZz
+.Op Fl 46DdhklnrStUuvz
 .Op Fl I Ar length
 .Op Fl i Ar interval
-.Op Fl H Ar header Ns : Ns Ar value
 .Op Fl O Ar length
 .Op Fl P Ar proxy_username
 .Op Fl p Ar source_port
-.Op Fl q Ar seconds
 .Op Fl s Ar source
 .Op Fl T Ar toskeyword
 .Op Fl V Ar rtable
@@ -100,23 +98,10 @@ to use IPv4 addresses only.
 Forces
 .Nm
 to use IPv6 addresses only.
-.It Fl b
-Allow broadcast.
-.It Fl C
-Send CRLF as line-ending.
 .It Fl D
 Enable debugging on the socket.
 .It Fl d
 Do not attempt to read from stdin.
-.It Fl H Ar header Ns : Ns Ar value
-Adds
-.Dq Ar header Ns : Ar value Ns \er\en
-to the HTTP request when talking to a CONNECT proxy.
-.Fl H
-may be used multiple times to add more than one header.
-This option is particularly useful to add a
-.Dq User-Agent
-header because some proxies insist on it.
 .It Fl h
 Prints out
 .Nm
@@ -129,8 +114,11 @@ Also causes a delay time between connections to multiple ports.
 .It Fl k
 Forces
 .Nm
-to keep re-connecting to/listening on the target port(s) after its current connection
+to stay listening for another connection after its current connection
 is completed.
+It is an error to use this option without the
+.Fl l
+option.
 .It Fl l
 Used to specify that
 .Nm
@@ -158,10 +146,6 @@ Proxy authentication is only supported for HTTP CONNECT proxies at present.
 Specifies the source port
 .Nm
 should use, subject to privilege restrictions and availability.
-.It Fl q Ar seconds
-after EOF on stdin, wait the specified number of seconds and then quit. If
-.Ar seconds
-is negative, wait forever.
 .It Fl r
 Specifies that source and/or destination ports should be chosen randomly
 instead of sequentially within a range or in the order that the system
@@ -266,8 +250,6 @@ If
 .Ar port
 is not specified, the well-known port for the proxy protocol is used (1080
 for SOCKS, 3128 for HTTPS).
-.It Fl Z
-DCCP mode.
 .It Fl z
 Specifies that
 .Nm
@@ -332,54 +314,6 @@ and which side is being used as a
 The connection may be terminated using an
 .Dv EOF
 .Pq Sq ^D .
-.Pp
-There is no
-.Fl c
-or
-.Fl e
-option in this netcat, but you still can execute a command after connection
-being established by redirecting file descriptors. Be cautious here because
-opening a port and let anyone connected execute arbitrary command on your
-site is DANGEROUS. If you really need to do this, here is an example:
-.Pp
-On
-.Sq server
-side:
-.Pp
-.Dl $ rm -f /tmp/f; mkfifo /tmp/f
-.Dl $ cat /tmp/f | /bin/sh -i 2>&1 | nc -l 127.0.0.1 1234 > /tmp/f
-.Pp
-On
-.Sq client
-side:
-.Pp
-.Dl $ nc host.example.com 1234
-.Dl $ (shell prompt from host.example.com)
-.Pp
-By doing this, you create a fifo at /tmp/f and make nc listen at port 1234
-of address 127.0.0.1 on
-.Sq server
-side, when a
-.Sq client
-establishes a connection successfully to that port, /bin/sh gets executed
-on
-.Sq server
-side and the shell prompt is given to
-.Sq client
-side.
-.Pp
-When connection is terminated,
-.Nm
-quits as well. Use
-.Fl k
-if you want it keep listening, but if the command quits this option won't
-restart it or keep
-.Nm
-running. Also don't forget to remove the file descriptor once you don't need
-it anymore:
-.Pp
-.Dl $ rm -f /tmp/f
-.Pp
 .Sh DATA TRANSFER
 The example in the previous section can be expanded to build a
 basic data transfer model.
@@ -421,7 +355,7 @@ More complicated examples can be built up when the user knows the format
 of requests required by the server.
 As another example, an email may be submitted to an SMTP server using:
 .Bd -literal -offset indent
-$ nc [\-C] localhost 25 \*(Lt\*(Lt EOF
+$ nc localhost 25 \*(Lt\*(Lt EOF
 HELO host.example.com
 MAIL FROM:\*(Ltuser@host.example.com\*(Gt
 RCPT TO:\*(Ltuser2@host.example.com\*(Gt
@@ -439,30 +373,15 @@ The
 flag can be used to tell
 .Nm
 to report open ports,
-rather than initiate a connection. Usually it's useful to turn on verbose
-output to stderr by use this option in conjunction with
-.Fl v
-option.
-.Pp
+rather than initiate a connection.
 For example:
 .Bd -literal -offset indent
-$ nc \-zv host.example.com 20-30
+$ nc -z host.example.com 20-30
 Connection to host.example.com 22 port [tcp/ssh] succeeded!
 Connection to host.example.com 25 port [tcp/smtp] succeeded!
 .Ed
 .Pp
-The port range was specified to limit the search to ports 20 \- 30, and is
-scanned by increasing order.
-.Pp
-You can also specify a list of ports to scan, for example:
-.Bd -literal -offset indent
-$ nc \-zv host.example.com 80 20 22
-nc: connect to host.example.com 80 (tcp) failed: Connection refused
-nc: connect to host.example.com 20 (tcp) failed: Connection refused
-Connection to host.example.com port [tcp/ssh] succeeded!
-.Ed
-.Pp
-The ports are scanned by the order you given.
+The port range was specified to limit the search to ports 20 \- 30.
 .Pp
 Alternatively, it might be useful to know which server software
 is running, and which versions.
@@ -527,9 +446,6 @@ Original implementation by *Hobbit*
 .br
 Rewritten with IPv6 support by
 .An Eric Jackson Aq ericj@monkey.org .
-.br
-Modified for Debian port by Aron Xu
-.Aq aron@debian.org .
 .Sh CAVEATS
 UDP port scans using the
 .Fl uz
