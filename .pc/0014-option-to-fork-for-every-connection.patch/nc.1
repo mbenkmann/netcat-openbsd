@@ -38,7 +38,6 @@
 .Op Fl I Ar length
 .Op Fl i Ar interval
 .Op Fl H Ar header Ns : Ns Ar value
-.Op Fl m Ar maxfork
 .Op Fl O Ar length
 .Op Fl P Ar proxy_username
 .Op Fl p Ar source_port
@@ -146,14 +145,6 @@ options.
 Additionally, any timeouts specified with the
 .Fl w
 option are ignored.
-.It Fl m Ar maxfork
-Spawn up to
-.Ar maxfork
-child processes to handle connections in parallel.
-Communication errors will only terminate the affected child processes.
-It is an error to use this option in conjunction with the
-.Fl u
-option.
 .It Fl n
 Do not do any DNS or service lookups on any specified addresses,
 hostnames or ports.

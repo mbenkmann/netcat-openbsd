@@ -123,7 +123,6 @@ unsigned int iflag;				/* Interval Flag */
 int	jflag;					/* use jumbo frames if we can */
 int	kflag;					/* More than one connect */
 int	lflag;					/* Bind to local port */
-int	mflag;					/* max. child processes to fork */
 int	nflag;					/* Don't do name look up */
 char   *Pflag;					/* Proxy username */
 char   *pflag;					/* Localport flag */
@@ -171,40 +170,6 @@ static int connect_with_timeout(int fd, const struct sockaddr *sa,
         socklen_t salen, int ctimeout);
 static void quit();
 
-int	child_count = 0;
-static	int handle_mflag(void) {
-	int childpid;
-	
-	if (!mflag)
-		return 0;
-	
-	if (child_count == mflag) {
-		for (; waitpid(-1, NULL, 0) < 0;) {
-			if (errno != EINTR) {
-				warn("waitpid");
-				sleep(1); /* wait a little before returning to the main loop */
-				return 1;
-			}
-		}
-		--child_count;
-	}
-	
-	childpid = fork();
-	if (childpid < 0) {
-		warn("fork");
-		sleep(1); /* wait a little before returning to the main loop */
-		return 1;
-	}
-	
-	if (childpid == 0) { /* inside the child process */
-		kflag = 0;   /* the child must not loop */
-		return 0;
-	}
-	
-	++child_count;
-	return 1;
-}
-
 int
 main(int argc, char *argv[])
 {
@@ -232,7 +197,7 @@ main(int argc, char *argv[])
 	sv = NULL;
 
 	while ((ch = getopt(argc, argv,
-	    "46bCDdhH:I:i:jklm:nO:P:p:q:rSs:tT:UuV:vw:X:x:Zz")) != -1) {
+	    "46bCDdhH:I:i:jklnO:P:p:q:rSs:tT:UuV:vw:X:x:Zz")) != -1) {
 		switch (ch) {
 		case '4':
 			family = AF_INET;
@@ -301,11 +266,6 @@ main(int argc, char *argv[])
 			break;
 		case 'l':
 			lflag = 1;
-			break;
-                case 'm':
-			mflag = strtonum(optarg, 0, UINT_MAX, &errstr);
-			if (errstr)
-				errx(1, "-m value %s: %s", errstr, optarg);
 			break;
 		case 'n':
 			nflag = 1;
@@ -449,9 +409,6 @@ main(int argc, char *argv[])
 			errx(1, "cannot use -p and -l"); */
 			uport = &pflag;
 	}
-	
-	if (mflag && uflag)
-            		errx(1, "cannot use -m with -u");
 
 	/* Get name of temporary socket for unix datagram client */
 	if ((family == AF_UNIX) && uflag && !lflag) {
@@ -544,6 +501,7 @@ main(int argc, char *argv[])
 			family,
 			*uport);
 
+		/* Allow only one connection at a time, but stay alive. */
 		for (;;) {
 
 			/*
@@ -571,14 +529,6 @@ main(int argc, char *argv[])
 				len = sizeof(cliaddr);
 				connfd = accept(s, (struct sockaddr *)&cliaddr,
 				    &len);
-				if (handle_mflag()) {
-					close(connfd);	/* close connfd in the parent process */
-					if (vflag)
-						fprintf(stderr, "Forked child process to handle connection, listening again.\n");
-					continue;
-                                }
-                                if (connfd < 0)
-                                	err(1, "accept");
 				if(vflag && family == AF_UNIX) {
 					fprintf(stderr, "Connection from \"%.*s\" accepted\n",
 						(len - (int)offsetof(struct sockaddr_un, sun_path)),
@@ -644,11 +594,6 @@ main(int argc, char *argv[])
 		}
 	} else if (family == AF_UNIX) {
 		for (;;) {
-			if (handle_mflag()) {
-				if (vflag)
-					fprintf(stderr, "Forked child process to handle connection to %s.\n", host);
-				continue;
-			}
 			ret = 0;
 
 			if ((s = unix_connect(host)) > 0 && !zflag) {
@@ -680,12 +625,6 @@ main(int argc, char *argv[])
 			if (s)
 				close(s);
 
-			if (handle_mflag()) {
-				if (vflag)
-					fprintf(stderr, "Forked child process to handle connection to %s:%s.\n", host, portlist[i]);
-				continue;
-			}
-			
 			if (xflag)
 				s = socks_connect(host, portlist[i], hints,
 				    proxyhost, proxyport, proxyhints, socksv,
@@ -717,7 +656,7 @@ main(int argc, char *argv[])
 				}
 
 				fprintf(stderr,
-				    "Connection to %s port %s [%s/%s] "
+				    "Connection to %s %s port [%s/%s] "
 				    "succeeded!\n", host, portlist[i],
 				    proto,
 				    sv ? sv->s_name : "*");
@@ -1438,7 +1377,6 @@ help(void)
 	\t-j		Use jumbo frame\n\
 	\t-k		Keep re-connecting/listening after connections close\n\
 	\t-l		Listen mode, for inbound connects\n\
-	\t-m maxfork	Handle up to maxfork connections in parallel\n\
 	\t-n		Suppress name/port resolutions\n\
 	\t-O length	TCP send buffer length\n\
 	\t-P proxyuser\tUsername for proxy authentication\n\
@@ -1467,7 +1405,7 @@ usage(int ret)
 {
 	fprintf(stderr,
 	    "usage: nc [-46bCDdhjklnrStUuvZz] [-I length] [-i interval] [-H header:value]\n"
-	    "\t  [-m maxfork] [-O length] [-P proxy_username] [-p source_port] [-q seconds]\n"
+	    "\t  [-O length] [-P proxy_username] [-p source_port] [-q seconds]\n"
 	    "\t  [-s source] [-T toskeyword] [-V rtable] [-w timeout]\n"
 	    "\t  [-X proxy_protocol] [-x proxy_address[:port]] [destination] [port]\n");
 	if (ret)

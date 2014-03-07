@@ -1,0 +1,181 @@
+--- a/netcat.c
++++ b/netcat.c
+@@ -123,6 +123,7 @@
+ int	jflag;					/* use jumbo frames if we can */
+ int	kflag;					/* More than one connect */
+ int	lflag;					/* Bind to local port */
++int	mflag;					/* max. child processes to fork */
+ int	nflag;					/* Don't do name look up */
+ char   *Pflag;					/* Proxy username */
+ char   *pflag;					/* Localport flag */
+@@ -170,6 +171,40 @@
+         socklen_t salen, int ctimeout);
+ static void quit();
+ 
++int	child_count = 0;
++static	int handle_mflag(void) {
++	int childpid;
++	
++	if (!mflag)
++		return 0;
++	
++	if (child_count == mflag) {
++		for (; waitpid(-1, NULL, 0) < 0;) {
++			if (errno != EINTR) {
++				warn("waitpid");
++				sleep(1); /* wait a little before returning to the main loop */
++				return 1;
++			}
++		}
++		--child_count;
++	}
++	
++	childpid = fork();
++	if (childpid < 0) {
++		warn("fork");
++		sleep(1); /* wait a little before returning to the main loop */
++		return 1;
++	}
++	
++	if (childpid == 0) { /* inside the child process */
++		kflag = 0;   /* the child must not loop */
++		return 0;
++	}
++	
++	++child_count;
++	return 1;
++}
++
+ int
+ main(int argc, char *argv[])
+ {
+@@ -197,7 +232,7 @@
+ 	sv = NULL;
+ 
+ 	while ((ch = getopt(argc, argv,
+-	    "46bCDdhH:I:i:jklnO:P:p:q:rSs:tT:UuV:vw:X:x:Zz")) != -1) {
++	    "46bCDdhH:I:i:jklm:nO:P:p:q:rSs:tT:UuV:vw:X:x:Zz")) != -1) {
+ 		switch (ch) {
+ 		case '4':
+ 			family = AF_INET;
+@@ -267,6 +302,11 @@
+ 		case 'l':
+ 			lflag = 1;
+ 			break;
++                case 'm':
++			mflag = strtonum(optarg, 0, UINT_MAX, &errstr);
++			if (errstr)
++				errx(1, "-m value %s: %s", errstr, optarg);
++			break;
+ 		case 'n':
+ 			nflag = 1;
+ 			break;
+@@ -409,6 +449,9 @@
+ 			errx(1, "cannot use -p and -l"); */
+ 			uport = &pflag;
+ 	}
++	
++	if (mflag && uflag)
++            		errx(1, "cannot use -m with -u");
+ 
+ 	/* Get name of temporary socket for unix datagram client */
+ 	if ((family == AF_UNIX) && uflag && !lflag) {
+@@ -501,7 +544,6 @@
+ 			family,
+ 			*uport);
+ 
+-		/* Allow only one connection at a time, but stay alive. */
+ 		for (;;) {
+ 
+ 			/*
+@@ -529,6 +571,14 @@
+ 				len = sizeof(cliaddr);
+ 				connfd = accept(s, (struct sockaddr *)&cliaddr,
+ 				    &len);
++				if (handle_mflag()) {
++					close(connfd);	/* close connfd in the parent process */
++					if (vflag)
++						fprintf(stderr, "Forked child process to handle connection, listening again.\n");
++					continue;
++                                }
++                                if (connfd < 0)
++                                	err(1, "accept");
+ 				if(vflag && family == AF_UNIX) {
+ 					fprintf(stderr, "Connection from \"%.*s\" accepted\n",
+ 						(len - (int)offsetof(struct sockaddr_un, sun_path)),
+@@ -594,6 +644,11 @@
+ 		}
+ 	} else if (family == AF_UNIX) {
+ 		for (;;) {
++			if (handle_mflag()) {
++				if (vflag)
++					fprintf(stderr, "Forked child process to handle connection to %s.\n", host);
++				continue;
++			}
+ 			ret = 0;
+ 
+ 			if ((s = unix_connect(host)) > 0 && !zflag) {
+@@ -625,6 +680,12 @@
+ 			if (s)
+ 				close(s);
+ 
++			if (handle_mflag()) {
++				if (vflag)
++					fprintf(stderr, "Forked child process to handle connection to %s:%s.\n", host, portlist[i]);
++				continue;
++			}
++			
+ 			if (xflag)
+ 				s = socks_connect(host, portlist[i], hints,
+ 				    proxyhost, proxyport, proxyhints, socksv,
+@@ -656,7 +717,7 @@
+ 				}
+ 
+ 				fprintf(stderr,
+-				    "Connection to %s %s port [%s/%s] "
++				    "Connection to %s port %s [%s/%s] "
+ 				    "succeeded!\n", host, portlist[i],
+ 				    proto,
+ 				    sv ? sv->s_name : "*");
+@@ -1377,6 +1438,7 @@
+ 	\t-j		Use jumbo frame\n\
+ 	\t-k		Keep re-connecting/listening after connections close\n\
+ 	\t-l		Listen mode, for inbound connects\n\
++	\t-m maxfork	Handle up to maxfork connections in parallel\n\
+ 	\t-n		Suppress name/port resolutions\n\
+ 	\t-O length	TCP send buffer length\n\
+ 	\t-P proxyuser\tUsername for proxy authentication\n\
+@@ -1405,7 +1467,7 @@
+ {
+ 	fprintf(stderr,
+ 	    "usage: nc [-46bCDdhjklnrStUuvZz] [-I length] [-i interval] [-H header:value]\n"
+-	    "\t  [-O length] [-P proxy_username] [-p source_port] [-q seconds]\n"
++	    "\t  [-m maxfork] [-O length] [-P proxy_username] [-p source_port] [-q seconds]\n"
+ 	    "\t  [-s source] [-T toskeyword] [-V rtable] [-w timeout]\n"
+ 	    "\t  [-X proxy_protocol] [-x proxy_address[:port]] [destination] [port]\n");
+ 	if (ret)
+--- a/nc.1
++++ b/nc.1
+@@ -38,6 +38,7 @@
+ .Op Fl I Ar length
+ .Op Fl i Ar interval
+ .Op Fl H Ar header Ns : Ns Ar value
++.Op Fl m Ar maxfork
+ .Op Fl O Ar length
+ .Op Fl P Ar proxy_username
+ .Op Fl p Ar source_port
+@@ -145,6 +146,14 @@
+ Additionally, any timeouts specified with the
+ .Fl w
+ option are ignored.
++.It Fl m Ar maxfork
++Spawn up to
++.Ar maxfork
++child processes to handle connections in parallel.
++Communication errors will only terminate the affected child processes.
++It is an error to use this option in conjunction with the
++.Fl u
++option.
+ .It Fl n
+ Do not do any DNS or service lookups on any specified addresses,
+ hostnames or ports.
