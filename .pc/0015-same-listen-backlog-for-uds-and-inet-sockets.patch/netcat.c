@@ -115,8 +115,6 @@
 
 #define UDP_SCAN_TIMEOUT 3			/* Seconds */
 
-#define LISTEN_BACKLOG 5
-
 /* Command Line Options */
 int	bflag;					/* Allow Broadcast */
 int     Cflag = 0;                              /* CRLF line-ending */
@@ -820,7 +818,7 @@ unix_listen(char *path)
 	if ((s = unix_bind(path)) < 0)
 		return (-1);
 
-	if (listen(s, LISTEN_BACKLOG) < 0) {
+	if (listen(s, 5) < 0) {
 		close(s);
 		return (-1);
 	}
@@ -1092,7 +1090,7 @@ local_listen(char *host, char *port, struct addrinfo hints)
 	} while ((res0 = res0->ai_next) != NULL);
 
 	if (!uflag && s != -1) {
-		if (listen(s, LISTEN_BACKLOG) < 0)
+		if (listen(s, 1) < 0)
 			err(1, "listen");
 	}
 
