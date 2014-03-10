@@ -35,7 +35,6 @@
 .Nm nc
 .Bk -words
 .Op Fl 46bCDdhklnrStUuvZz
-.Op Fl 2 Ar endpoint2
 .Op Fl I Ar length
 .Op Fl i Ar interval
 .Op Fl H Ar header Ns : Ns Ar value
@@ -94,23 +93,6 @@ and much, much more
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
-.It Fl 2 Ar endpoint2
-When a primary connection to/from
-.Ar destination
-has been established, connect to
-.Ar endpoint2
-instead of using stdin+stdout as 2nd endpoint.
-.Ar endpoint2
-must be specified as a
-.Dq host:port
-address. If
-.Fl x
-is used to set a proxy, the same proxy will be used for
-connecting to
-.Ar endpoint2 .
-It is an error to use this option in conjunction with the
-.Fl u
-option.
 .It Fl 4
 Forces
 .Nm

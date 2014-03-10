@@ -1,0 +1,239 @@
+--- a/nc.1
++++ b/nc.1
+@@ -35,6 +35,7 @@
+ .Nm nc
+ .Bk -words
+ .Op Fl 46bCDdhklnrStUuvZz
++.Op Fl 2 Ar endpoint2
+ .Op Fl I Ar length
+ .Op Fl i Ar interval
+ .Op Fl H Ar header Ns : Ns Ar value
+@@ -93,6 +94,23 @@
+ .Pp
+ The options are as follows:
+ .Bl -tag -width Ds
++.It Fl 2 Ar endpoint2
++When a primary connection to/from
++.Ar destination
++has been established, connect to
++.Ar endpoint2
++instead of using stdin+stdout as 2nd endpoint.
++.Ar endpoint2
++must be specified as a
++.Dq host:port
++address. If
++.Fl x
++is used to set a proxy, the same proxy will be used for
++connecting to
++.Ar endpoint2 .
++It is an error to use this option in conjunction with the
++.Fl u
++option.
+ .It Fl 4
+ Forces
+ .Nm
+--- a/netcat.c
++++ b/netcat.c
+@@ -98,6 +98,7 @@
+ #include <limits.h>
+ #include <bsd/stdlib.h>
+ #include <bsd/string.h>
++#include <sys/wait.h>
+ #include "atomicio.h"
+ 
+ #ifndef SUN_LEN
+@@ -168,9 +169,14 @@
+ int	map_tos(char *, int *);
+ void	usage(int);
+ char    *proto_name(int uflag, int dccpflag);
++const char    *af_name(short af);
+ 
+ static int connect_with_timeout(int fd, const struct sockaddr *sa,
+         socklen_t salen, int ctimeout);
++static void connect_stdin_stdout_to(const char *endpoint2host, const char *endpoint2port,
++	struct addrinfo hints, const char *proxyhost, const char *proxyport,
++	struct addrinfo proxyhints, int socksv, const char *proxyuser, char *headers);
++static void shutdown_endpoint2(const char *endpoint2host);
+ static void quit();
+ 
+ int	child_count = 0;
+@@ -222,6 +228,8 @@
+ 	} cliaddr;
+ 	char *proxy = NULL;
+ 	const char *errstr, *proxyhost = "", *proxyport = NULL;
++	char *endpoint2 = NULL;
++	char *endpoint2host = NULL, *endpoint2port = NULL;
+ 	char* headers = NULL;
+ 	struct addrinfo proxyhints;
+ 	char unix_dg_tmp_socket_buf[UNIX_DG_TMP_SOCKET_SIZE];
+@@ -234,8 +242,12 @@
+ 	sv = NULL;
+ 
+ 	while ((ch = getopt(argc, argv,
+-	    "46bCDdhH:I:i:jklm:nO:P:p:q:rSs:tT:UuV:vw:X:x:Zz")) != -1) {
++	    "2:46bCDdhH:I:i:jklm:nO:P:p:q:rSs:tT:UuV:vw:X:x:Zz")) != -1) {
+ 		switch (ch) {
++		case '2':
++			if ((endpoint2 = strdup(optarg)) == NULL)
++				err(1, NULL);
++			break;
+ 		case '4':
+ 			family = AF_INET;
+ 			break;
+@@ -521,6 +533,17 @@
+ 			proxyhints.ai_flags |= AI_NUMERICHOST;
+ 	}
+ 
++	if (endpoint2 != NULL) {
++		if (uflag)
++			errx(1, "no 2nd endpoint support for UDP mode");
++
++		endpoint2port = strrchr(endpoint2, ':');
++		if (endpoint2port == NULL)
++			errx(1, "port missing in -2 address: %s", endpoint2);
++		*endpoint2port++ = 0;
++		endpoint2host = endpoint2;
++	}
++
+ 	if (lflag) {
+ 		int connfd;
+ 		ret = 0;
+@@ -627,7 +650,9 @@
+ 				}
+                                 if(!kflag)
+                                         close(s);
++				connect_stdin_stdout_to(endpoint2host, endpoint2port, hints, proxyhost, proxyport, proxyhints, socksv, Pflag, headers);
+ 				readwrite(connfd);
++				shutdown_endpoint2(endpoint2host);
+ 				close(connfd);
+ 			}
+ 
+@@ -654,7 +679,9 @@
+ 			ret = 0;
+ 
+ 			if ((s = unix_connect(host)) > 0 && !zflag) {
++				connect_stdin_stdout_to(endpoint2host, endpoint2port, hints, proxyhost, proxyport, proxyhints, socksv, Pflag, headers);
+ 				readwrite(s);
++				shutdown_endpoint2(endpoint2host);
+ 				close(s);
+ 			} else
+ 				ret = 1;
+@@ -725,7 +752,9 @@
+ 				    sv ? sv->s_name : "*");
+ 			}
+ 			if (!zflag)
++				connect_stdin_stdout_to(endpoint2host, endpoint2port, hints, proxyhost, proxyport, proxyhints, socksv, Pflag, headers);
+ 				readwrite(s);
++				shutdown_endpoint2(endpoint2host);
+ 		}
+ 	}
+ 
+@@ -827,7 +856,15 @@
+ 	return (s);
+ }
+ 
+-char *proto_name(uflag, dccpflag) {
++const char    *af_name(short af) {
++	switch (af) {
++	case AF_INET: return "AF_INET";
++	case AF_INET6: return "AF_INET6";
++	default: return "AF_UNKNOWN";
++	}
++}
++
++char *proto_name(int uflag, int dccpflag) {
+ 
+     char *proto = NULL;
+     if (uflag) {
+@@ -910,17 +947,22 @@
+ 
+ 		set_common_sockopts(s);
+ 		char *proto = proto_name(uflag, dccpflag);
++		const char *af = "";
++		if (res0->ai_addrlen > sizeof(short))
++			af = af_name(*(short*)res0->ai_addr);
+ 
+                 if ((error = connect_with_timeout(s, res0->ai_addr, res0->ai_addrlen, timeout))== CONNECTION_SUCCESS) {
++			warnx("connect to %s port %s (%s/%s) succeeded", host, port,
++			     proto, af);  
+ 			break;
+ 		}
+ 		else if (vflag && error == CONNECTION_FAILED) {
+-			warn("connect to %s port %s (%s) failed", host, port,
+-			     proto);
++			warn("connect to %s port %s (%s/%s) failed", host, port,
++			     proto, af);
+ 		}
+                 else if (vflag && error == CONNECTION_TIMEOUT) {
+-                    warn("connect to %s port %s (%s) timed out", host, port,
+-                             proto);
++                    warn("connect to %s port %s (%s/%s) timed out", host, port,
++                             proto, af);
+ 		}
+ 
+ 		close(s);
+@@ -1032,6 +1074,43 @@
+ 	return (err != 0)? CONNECTION_FAILED : CONNECTION_SUCCESS;
+ }
+ 
++static void connect_stdin_stdout_to(const char *endpoint2host, const char *endpoint2port,
++	struct addrinfo hints, const char *proxyhost, const char *proxyport,
++	struct addrinfo proxyhints, int socksv, const char *proxyuser, char *headers)
++{
++	int s;
++
++	if (endpoint2host == NULL)
++		return;
++
++	if (xflag)
++		s = socks_connect(endpoint2host, endpoint2port, hints,
++		    proxyhost, proxyport, proxyhints, socksv,
++		    proxyuser, headers);
++	else
++		s = remote_connect(endpoint2host, endpoint2port, hints);
++
++	if (s < 0)
++		errx(1, "could not connect to 2nd endpoint");
++
++	if ((dup2(s, fileno(stdin)) < 0) || (dup2(s, fileno(stdout)) < 0))
++		err(1, "could not set stdin+stdout to 2nd endpoint");
++
++	close(s);
++}
++
++static void shutdown_endpoint2(const char *endpoint2host) {
++	if (endpoint2host == NULL)
++		return;
++
++	/* Do NOT use close() here because it would free
++	the file descriptors for re-use and they would end up
++	being used for the next primary connection which would
++	cause everything to break horribly. */
++	shutdown(fileno(stdin),  SHUT_RDWR);
++	shutdown(fileno(stdout), SHUT_RDWR);
++}
++
+ /*
+  * local_listen()
+  * Returns a socket listening on a local port, binds to specified source
+@@ -1427,6 +1506,7 @@
+ # endif
+ 	usage(0);
+ 	fprintf(stderr, "\tCommand Summary:\n\
++	\t-2 endpoint2	Connect to endpoint2 and use instead of stdin/out\n\
+ 	\t-4		Use IPv4\n\
+ 	\t-6		Use IPv6\n\
+ 	\t-b		Allow broadcast\n\
+@@ -1468,9 +1548,9 @@
+ usage(int ret)
+ {
+ 	fprintf(stderr,
+-	    "usage: nc [-46bCDdhjklnrStUuvZz] [-I length] [-i interval] [-H header:value]\n"
+-	    "\t  [-m maxfork] [-O length] [-P proxy_username] [-p source_port] [-q seconds]\n"
+-	    "\t  [-s source] [-T toskeyword] [-V rtable] [-w timeout]\n"
++	    "usage: nc [-46bCDdhjklnrStUuvZz] [-I length] [-2 endpoint2] [-i interval]\n"
++	    "\t  [-H header:value] [-m maxfork] [-O length] [-P proxy_username] [-p source_port]\n"
++	    "\t  [-q seconds] [-s source] [-T toskeyword] [-V rtable] [-w timeout]\n"
+ 	    "\t  [-X proxy_protocol] [-x proxy_address[:port]] [destination] [port]\n");
+ 	if (ret)
+ 		exit(1);
