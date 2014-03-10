@@ -57,9 +57,6 @@ int	remote_connect(const char *, const char *, struct addrinfo);
 int	socks_connect(const char *, const char *, struct addrinfo,
 	    const char *, const char *, struct addrinfo, int,
 	    const char *, char*);
-int	proxy_read_connection_request(int request_sock, const char **host, const char **port);
-void	proxy_send_error_reply(int request_sock, int proxy_proto);
-void	proxy_send_success_reply(int request_sock, int proxy_proto, int peer_sock);
 
 static int
 decode_addrport(const char *h, const char *p, struct sockaddr *addr,
@@ -88,13 +85,6 @@ decode_addrport(const char *h, const char *p, struct sockaddr *addr,
 	memcpy(addr, res->ai_addr, res->ai_addrlen);
 	freeaddrinfo(res);
 	return (0);
-}
-
-static void
-read_or_err(int fd, void *buf, size_t count) {
-        size_t cnt = atomicio(read, fd, buf, count);
-	if (cnt != count)
-                err(1, "read failed (%zu/%zu)", cnt, count);
 }
 
 static int
@@ -354,33 +344,4 @@ socks_connect(const char *host, const char *port,
 		errx(1, "Unknown proxy protocol %d", socksv);
 
 	return (proxyfd);
-}
-
-int
-proxy_read_connection_request(int request_sock, const char **host, const char **port) 
-{
-	unsigned char buf[1024];
-	read_or_err(request_sock, buf, 1);
-
-	switch (buf[0]) {
-	case SOCKS_V4: break;
-	case SOCKS_V5: break;
-	case 'C':
-		proxy_read_line(request_sock, (char*)buf+1, sizeof(buf));
-		break;
-	default:
-		errx(1, "Unknown proxy protocol %d", (int)buf[0]);
-	}
-
-	return buf[0];
-}
-
-void
-proxy_send_error_reply(int request_sock, int proxy_proto)
-{
-}
-
-void
-proxy_send_success_reply(int request_sock, int proxy_proto, int peer_sock)
-{
 }

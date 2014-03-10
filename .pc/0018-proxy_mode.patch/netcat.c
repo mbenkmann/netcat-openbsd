@@ -118,8 +118,6 @@
 
 #define LISTEN_BACKLOG 5
 
-char *PROXY = "proxy";
-
 /* Command Line Options */
 int	bflag;					/* Allow Broadcast */
 int     Cflag = 0;                              /* CRLF line-ending */
@@ -162,9 +160,6 @@ void	readwrite(int);
 int	remote_connect(const char *, const char *, struct addrinfo);
 int	socks_connect(const char *, const char *, struct addrinfo,
 	    const char *, const char *, struct addrinfo, int, const char *, char*);
-int	proxy_read_connection_request(int request_sock, const char **host, const char **port);
-void	proxy_send_error_reply(int request_sock, int proxy_proto);
-void	proxy_send_success_reply(int request_sock, int proxy_proto, int peer_sock);
 int	udptest(int);
 int	unix_bind(char *);
 int	unix_connect(char *);
@@ -177,7 +172,7 @@ const char    *af_name(short af);
 
 static int connect_with_timeout(int fd, const struct sockaddr *sa,
         socklen_t salen, int ctimeout);
-static void connect_stdin_stdout_to(int request_sock, const char *endpoint2host, const char *endpoint2port,
+static void connect_stdin_stdout_to(const char *endpoint2host, const char *endpoint2port,
 	struct addrinfo hints, const char *proxyhost, const char *proxyport,
 	struct addrinfo proxyhints, int socksv, const char *proxyuser, char *headers);
 static void shutdown_endpoint2(const char *endpoint2host);
@@ -541,15 +536,11 @@ main(int argc, char *argv[])
 		if (uflag)
 			errx(1, "no 2nd endpoint support for UDP mode");
 
-		if (strcmp(endpoint2, PROXY) == 0)
-			endpoint2 = PROXY;
-
 		endpoint2port = strrchr(endpoint2, ':');
-		endpoint2host = endpoint2;
-		if (endpoint2port == NULL && endpoint2 != PROXY)
+		if (endpoint2port == NULL)
 			errx(1, "port missing in -2 address: %s", endpoint2);
-		else
-			*endpoint2port++ = 0;
+		*endpoint2port++ = 0;
+		endpoint2host = endpoint2;
 	}
 
 	if (lflag) {
@@ -658,7 +649,7 @@ main(int argc, char *argv[])
 				}
                                 if(!kflag)
                                         close(s);
-				connect_stdin_stdout_to(connfd, endpoint2host, endpoint2port, hints, proxyhost, proxyport, proxyhints, socksv, Pflag, headers);
+				connect_stdin_stdout_to(endpoint2host, endpoint2port, hints, proxyhost, proxyport, proxyhints, socksv, Pflag, headers);
 				readwrite(connfd);
 				shutdown_endpoint2(endpoint2host);
 				close(connfd);
@@ -687,7 +678,7 @@ main(int argc, char *argv[])
 			ret = 0;
 
 			if ((s = unix_connect(host)) > 0 && !zflag) {
-				connect_stdin_stdout_to(s, endpoint2host, endpoint2port, hints, proxyhost, proxyport, proxyhints, socksv, Pflag, headers);
+				connect_stdin_stdout_to(endpoint2host, endpoint2port, hints, proxyhost, proxyport, proxyhints, socksv, Pflag, headers);
 				readwrite(s);
 				shutdown_endpoint2(endpoint2host);
 				close(s);
@@ -760,7 +751,7 @@ main(int argc, char *argv[])
 				    sv ? sv->s_name : "*");
 			}
 			if (!zflag)
-				connect_stdin_stdout_to(s, endpoint2host, endpoint2port, hints, proxyhost, proxyport, proxyhints, socksv, Pflag, headers);
+				connect_stdin_stdout_to(endpoint2host, endpoint2port, hints, proxyhost, proxyport, proxyhints, socksv, Pflag, headers);
 				readwrite(s);
 				shutdown_endpoint2(endpoint2host);
 		}
@@ -1045,18 +1036,14 @@ static int connect_with_timeout(int fd, const struct sockaddr *sa,
 	return (err != 0)? CONNECTION_FAILED : CONNECTION_SUCCESS;
 }
 
-static void connect_stdin_stdout_to(int request_sock, const char *endpoint2host, const char *endpoint2port,
+static void connect_stdin_stdout_to(const char *endpoint2host, const char *endpoint2port,
 	struct addrinfo hints, const char *proxyhost, const char *proxyport,
 	struct addrinfo proxyhints, int socksv, const char *proxyuser, char *headers)
 {
 	int s;
-	int proxy_proto;
 
 	if (endpoint2host == NULL)
 		return;
-
-	if (endpoint2host == PROXY)
-		proxy_proto = proxy_read_connection_request(request_sock, &endpoint2host, &endpoint2port);
 
 	if (xflag)
 		s = socks_connect(endpoint2host, endpoint2port, hints,
@@ -1065,17 +1052,11 @@ static void connect_stdin_stdout_to(int request_sock, const char *endpoint2host,
 	else
 		s = remote_connect(endpoint2host, endpoint2port, hints);
 
-	if (s < 0) {
-		proxy_send_error_reply(request_sock, proxy_proto);
+	if (s < 0)
 		errx(1, "could not connect to 2nd endpoint");
-	}
 
-	if ((dup2(s, fileno(stdin)) < 0) || (dup2(s, fileno(stdout)) < 0)) {
-		proxy_send_error_reply(request_sock, proxy_proto);
+	if ((dup2(s, fileno(stdin)) < 0) || (dup2(s, fileno(stdout)) < 0))
 		err(1, "could not set stdin+stdout to 2nd endpoint");
-	}
-
-	proxy_send_success_reply(request_sock, proxy_proto, s);
 
 	close(s);
 }
