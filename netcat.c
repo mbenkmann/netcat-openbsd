@@ -1051,11 +1051,12 @@ static void connect_stdin_stdout_to(int request_sock, const char *endpoint2host,
 {
 	int s;
 	int proxy_proto;
+	int is_proxy = (endpoint2host == PROXY);
 
 	if (endpoint2host == NULL)
 		return;
 
-	if (endpoint2host == PROXY)
+	if (is_proxy)
 		proxy_proto = proxy_read_connection_request(request_sock, &endpoint2host, &endpoint2port);
 
 	if (xflag)
@@ -1066,16 +1067,22 @@ static void connect_stdin_stdout_to(int request_sock, const char *endpoint2host,
 		s = remote_connect(endpoint2host, endpoint2port, hints);
 
 	if (s < 0) {
-		proxy_send_error_reply(request_sock, proxy_proto);
+		if (is_proxy)
+			proxy_send_error_reply(request_sock, proxy_proto);
 		errx(1, "could not connect to 2nd endpoint");
 	}
 
 	if ((dup2(s, fileno(stdin)) < 0) || (dup2(s, fileno(stdout)) < 0)) {
-		proxy_send_error_reply(request_sock, proxy_proto);
+		if (is_proxy)
+			proxy_send_error_reply(request_sock, proxy_proto);
 		err(1, "could not set stdin+stdout to 2nd endpoint");
 	}
 
-	proxy_send_success_reply(request_sock, proxy_proto, s);
+	if (is_proxy) {
+		proxy_send_success_reply(request_sock, proxy_proto, s);
+		free((void*)endpoint2host);
+		free((void*)endpoint2port);
+	}
 
 	close(s);
 }

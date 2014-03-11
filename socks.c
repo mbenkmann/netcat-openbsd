@@ -119,6 +119,19 @@ proxy_read_line(int fd, char *buf, size_t bufsz)
 	return (off);
 }
 
+static void
+proxy_skip_headers(int proxyfd) {
+	char buf[1024];
+	int r;
+	/* Headers continue until we hit an empty line */
+	for (r = 0; r < HTTP_MAXHDRS; r++) {
+		proxy_read_line(proxyfd, buf, sizeof(buf));
+		if (*buf == '\0')
+			return;
+	}
+	errx(1, "Too many proxy headers received");
+}
+
 static const char *
 getproxypass(const char *proxyuser, const char *proxyhost)
 {
@@ -342,14 +355,8 @@ socks_connect(const char *host, const char *port,
 		    strncmp((char*)buf, "HTTP/1.1 200 ", 12) != 0)
 			errx(1, "Proxy error: \"%s\"", buf);
 
-		/* Headers continue until we hit an empty line */
-		for (r = 0; r < HTTP_MAXHDRS; r++) {
-			proxy_read_line(proxyfd, (char*)buf, sizeof(buf));
-			if (*buf == '\0')
-				break;
-		}
-		if (*buf != '\0')
-			errx(1, "Too many proxy headers received");
+		proxy_skip_headers(proxyfd);
+
 	} else
 		errx(1, "Unknown proxy protocol %d", socksv);
 
@@ -357,17 +364,132 @@ socks_connect(const char *host, const char *port,
 }
 
 int
-proxy_read_connection_request(int request_sock, const char **host, const char **port) 
+proxy_read_connection_request(int request_sock, const char **hostp, const char **portp) 
 {
-	unsigned char buf[1024];
+	char buf[1024];
+	uint16_t p = 0;
+	
+	*hostp = NULL;
+	*portp = NULL;
+	
 	read_or_err(request_sock, buf, 1);
 
 	switch (buf[0]) {
-	case SOCKS_V4: break;
-	case SOCKS_V5: break;
+	case SOCKS_V4:
+		read_or_err(request_sock, buf+1, 7);
+		if (buf[1] == SOCKS_CONNECT) {
+			p = ntohs(*(uint16_t*)(buf+2));
+			uint32_t ip = ntohl(*(uint32_t*)(buf+4));
+			/* skip user name */
+			for (buf[8] = 255; buf[8] != 0; read_or_err(request_sock, buf+8, 1));
+			if (ip > 0 && ip < 256) { /* SOCKSv4a with destination host as string */
+				int off = 8;
+				/* read destination string */
+				for (;;) {
+					if (off >= sizeof(buf))
+						errx(1, "Destination string in SOCKSv4a request too long");
+					read_or_err(request_sock, buf+off, 1);
+					if (buf[off++] == 0)
+						break;
+				}
+				if ((*hostp = strdup(buf+8)) == NULL)
+					err(1, "strdup");
+				if (**hostp == 0)
+					errx(1, "Empty destination in SOCKSv4a request");
+			} else { /* SOCKSv4 with numeric IP as destination */
+				if (0 >= asprintf(hostp, "%u.%u.%u.%u", (ip >> 24) & 255, (ip >> 16) & 255, (ip >> 7) & 255, ip & 255 ))
+					err(1, "could not convert IP address to string");
+			}
+			
+			if (0 >= asprintf(portp, "%u", (unsigned)p))
+					err(1, "could not convert port to string");
+
+			break;
+		}
+		errx(1, "Illegal SOCKSv4 request"); /* Do not include untrusted user strings in printout! */
+	case SOCKS_V5: 
+	{
+		int auth_method = SOCKS_NOMETHOD;
+		int count;
+		read_or_err(request_sock, buf+1, 1);
+		for (count = buf[1]; count > 0; --count) {
+			read_or_err(request_sock, buf+1, 1);
+			if (buf[1] == SOCKS_NOAUTH)
+				auth_method = SOCKS_NOAUTH;
+		}
+		
+		buf[1] = auth_method;
+		if (2 != atomicio(vwrite, request_sock, buf, 2))
+			err(1, "write failed");
+		
+		if (auth_method == SOCKS_NOMETHOD)
+			errx(1, "SOCKSv5 request with no compatible authentication method");
+		
+		read_or_err(request_sock, buf, 4);
+		if (buf[0] == SOCKS_V5 && buf[1] == SOCKS_CONNECT && buf[2] == 0) {
+			switch(buf[3]) {
+				case SOCKS_IPV4:
+					read_or_err(request_sock, buf+4, 6);
+					uint32_t ip = ntohl(*(uint32_t*)(buf+4));
+					p = ntohs(*(uint16_t*)(buf+8));
+					if (0 >= asprintf(hostp, "%u.%u.%u.%u", (ip >> 24) & 255, (ip >> 16) & 255, (ip >> 7) & 255, ip & 255 ))
+						err(1, "could not convert IP address to string");
+					break;
+				case SOCKS_IPV6:
+					read_or_err(request_sock, buf+4, 18);
+					p = ntohs(*(uint16_t*)(buf+20));
+					if (0 >= asprintf(hostp, "%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",
+							(int)(unsigned char)buf[4+0], (int)(unsigned char)buf[4+1],
+							(int)(unsigned char)buf[4+2], (int)(unsigned char)buf[4+3],
+							(int)(unsigned char)buf[4+4], (int)(unsigned char)buf[4+5],
+							(int)(unsigned char)buf[4+6], (int)(unsigned char)buf[4+7],
+							(int)(unsigned char)buf[4+8], (int)(unsigned char)buf[4+9],
+							(int)(unsigned char)buf[4+10], (int)(unsigned char)buf[4+11],
+							(int)(unsigned char)buf[4+12], (int)(unsigned char)buf[4+13],
+							(int)(unsigned char)buf[4+14], (int)(unsigned char)buf[4+15]))
+						err(1, "could not convert IPv6 address to string");
+					break;
+				case SOCKS_DOMAIN:
+					read_or_err(request_sock, buf+4, 1);
+					count = (int)(unsigned char)buf[4];
+					if (count == 0)
+						errx(1, "Empty destination in SOCKSv5 request");
+					read_or_err(request_sock, buf+5, count);
+					buf[5+count] = 0;
+					read_or_err(request_sock, buf+5+count+1, 2);
+					p = ntohs(*(uint16_t*)(buf+5+count+1));
+					if ((*hostp = strdup(buf+5)) == NULL)
+						err(1, "strdup");
+					break;
+				default:
+					errx(1, "Unknown SOCKSv5 address type %d", (int)buf[3]);
+			}
+			
+			if (0 >= asprintf(portp, "%u", (unsigned)p))
+				err(1, "could not convert port to string");
+			break;
+		}
+		
+		errx(1, "Illegal SOCKSv5 request"); /* Do not include untrusted user strings in printout! */
+	}
 	case 'C':
-		proxy_read_line(request_sock, (char*)buf+1, sizeof(buf));
-		break;
+		proxy_read_line(request_sock, buf+1, sizeof(buf)-1);
+		if (strcmp(buf, "CONNECT ") == 0) {
+			char *host = buf+8;
+			char *port = strchr(host, ' ');
+			if (port != NULL && port != host) {
+				*port = 0;
+				port = strrchr(host, ':');
+				if (port != NULL && port != host && port[1] != 0) {
+					*port++ = 0;
+					if (((*hostp = strdup(host)) == NULL) || ((*portp = strdup(port)) == NULL))
+						err(1, "strdup");
+					proxy_skip_headers(request_sock);
+					break;
+				}
+			}
+		}
+		errx(1, "Unknown proxy protocol"); /* Do not include untrusted user strings in printout! */
 	default:
 		errx(1, "Unknown proxy protocol %d", (int)buf[0]);
 	}

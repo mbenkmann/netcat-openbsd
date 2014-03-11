@@ -30,3 +30,336 @@
  .Fl u
  option.
  .It Fl 4
+--- a/netcat.c
++++ b/netcat.c
+@@ -118,6 +118,8 @@
+ 
+ #define LISTEN_BACKLOG 5
+ 
++char *PROXY = "proxy";
++
+ /* Command Line Options */
+ int	bflag;					/* Allow Broadcast */
+ int     Cflag = 0;                              /* CRLF line-ending */
+@@ -160,6 +162,9 @@
+ int	remote_connect(const char *, const char *, struct addrinfo);
+ int	socks_connect(const char *, const char *, struct addrinfo,
+ 	    const char *, const char *, struct addrinfo, int, const char *, char*);
++int	proxy_read_connection_request(int request_sock, const char **host, const char **port);
++void	proxy_send_error_reply(int request_sock, int proxy_proto);
++void	proxy_send_success_reply(int request_sock, int proxy_proto, int peer_sock);
+ int	udptest(int);
+ int	unix_bind(char *);
+ int	unix_connect(char *);
+@@ -172,7 +177,7 @@
+ 
+ static int connect_with_timeout(int fd, const struct sockaddr *sa,
+         socklen_t salen, int ctimeout);
+-static void connect_stdin_stdout_to(const char *endpoint2host, const char *endpoint2port,
++static void connect_stdin_stdout_to(int request_sock, const char *endpoint2host, const char *endpoint2port,
+ 	struct addrinfo hints, const char *proxyhost, const char *proxyport,
+ 	struct addrinfo proxyhints, int socksv, const char *proxyuser, char *headers);
+ static void shutdown_endpoint2(const char *endpoint2host);
+@@ -536,11 +541,15 @@
+ 		if (uflag)
+ 			errx(1, "no 2nd endpoint support for UDP mode");
+ 
++		if (strcmp(endpoint2, PROXY) == 0)
++			endpoint2 = PROXY;
++
+ 		endpoint2port = strrchr(endpoint2, ':');
+-		if (endpoint2port == NULL)
+-			errx(1, "port missing in -2 address: %s", endpoint2);
+-		*endpoint2port++ = 0;
+ 		endpoint2host = endpoint2;
++		if (endpoint2port == NULL && endpoint2 != PROXY)
++			errx(1, "port missing in -2 address: %s", endpoint2);
++		else
++			*endpoint2port++ = 0;
+ 	}
+ 
+ 	if (lflag) {
+@@ -649,7 +658,7 @@
+ 				}
+                                 if(!kflag)
+                                         close(s);
+-				connect_stdin_stdout_to(endpoint2host, endpoint2port, hints, proxyhost, proxyport, proxyhints, socksv, Pflag, headers);
++				connect_stdin_stdout_to(connfd, endpoint2host, endpoint2port, hints, proxyhost, proxyport, proxyhints, socksv, Pflag, headers);
+ 				readwrite(connfd);
+ 				shutdown_endpoint2(endpoint2host);
+ 				close(connfd);
+@@ -678,7 +687,7 @@
+ 			ret = 0;
+ 
+ 			if ((s = unix_connect(host)) > 0 && !zflag) {
+-				connect_stdin_stdout_to(endpoint2host, endpoint2port, hints, proxyhost, proxyport, proxyhints, socksv, Pflag, headers);
++				connect_stdin_stdout_to(s, endpoint2host, endpoint2port, hints, proxyhost, proxyport, proxyhints, socksv, Pflag, headers);
+ 				readwrite(s);
+ 				shutdown_endpoint2(endpoint2host);
+ 				close(s);
+@@ -751,7 +760,7 @@
+ 				    sv ? sv->s_name : "*");
+ 			}
+ 			if (!zflag)
+-				connect_stdin_stdout_to(endpoint2host, endpoint2port, hints, proxyhost, proxyport, proxyhints, socksv, Pflag, headers);
++				connect_stdin_stdout_to(s, endpoint2host, endpoint2port, hints, proxyhost, proxyport, proxyhints, socksv, Pflag, headers);
+ 				readwrite(s);
+ 				shutdown_endpoint2(endpoint2host);
+ 		}
+@@ -1036,15 +1045,20 @@
+ 	return (err != 0)? CONNECTION_FAILED : CONNECTION_SUCCESS;
+ }
+ 
+-static void connect_stdin_stdout_to(const char *endpoint2host, const char *endpoint2port,
++static void connect_stdin_stdout_to(int request_sock, const char *endpoint2host, const char *endpoint2port,
+ 	struct addrinfo hints, const char *proxyhost, const char *proxyport,
+ 	struct addrinfo proxyhints, int socksv, const char *proxyuser, char *headers)
+ {
+ 	int s;
++	int proxy_proto;
++	int is_proxy = (endpoint2host == PROXY);
+ 
+ 	if (endpoint2host == NULL)
+ 		return;
+ 
++	if (is_proxy)
++		proxy_proto = proxy_read_connection_request(request_sock, &endpoint2host, &endpoint2port);
++
+ 	if (xflag)
+ 		s = socks_connect(endpoint2host, endpoint2port, hints,
+ 		    proxyhost, proxyport, proxyhints, socksv,
+@@ -1052,11 +1066,23 @@
+ 	else
+ 		s = remote_connect(endpoint2host, endpoint2port, hints);
+ 
+-	if (s < 0)
++	if (s < 0) {
++		if (is_proxy)
++			proxy_send_error_reply(request_sock, proxy_proto);
+ 		errx(1, "could not connect to 2nd endpoint");
++	}
+ 
+-	if ((dup2(s, fileno(stdin)) < 0) || (dup2(s, fileno(stdout)) < 0))
++	if ((dup2(s, fileno(stdin)) < 0) || (dup2(s, fileno(stdout)) < 0)) {
++		if (is_proxy)
++			proxy_send_error_reply(request_sock, proxy_proto);
+ 		err(1, "could not set stdin+stdout to 2nd endpoint");
++	}
++
++	if (is_proxy) {
++		proxy_send_success_reply(request_sock, proxy_proto, s);
++		free((void*)endpoint2host);
++		free((void*)endpoint2port);
++	}
+ 
+ 	close(s);
+ }
+--- a/socks.c
++++ b/socks.c
+@@ -57,6 +57,9 @@
+ int	socks_connect(const char *, const char *, struct addrinfo,
+ 	    const char *, const char *, struct addrinfo, int,
+ 	    const char *, char*);
++int	proxy_read_connection_request(int request_sock, const char **host, const char **port);
++void	proxy_send_error_reply(int request_sock, int proxy_proto);
++void	proxy_send_success_reply(int request_sock, int proxy_proto, int peer_sock);
+ 
+ static int
+ decode_addrport(const char *h, const char *p, struct sockaddr *addr,
+@@ -87,6 +90,13 @@
+ 	return (0);
+ }
+ 
++static void
++read_or_err(int fd, void *buf, size_t count) {
++        size_t cnt = atomicio(read, fd, buf, count);
++	if (cnt != count)
++                err(1, "read failed (%zu/%zu)", cnt, count);
++}
++
+ static int
+ proxy_read_line(int fd, char *buf, size_t bufsz)
+ {
+@@ -109,6 +119,19 @@
+ 	return (off);
+ }
+ 
++static void
++proxy_skip_headers(int proxyfd) {
++	char buf[1024];
++	int r;
++	/* Headers continue until we hit an empty line */
++	for (r = 0; r < HTTP_MAXHDRS; r++) {
++		proxy_read_line(proxyfd, buf, sizeof(buf));
++		if (*buf == '\0')
++			return;
++	}
++	errx(1, "Too many proxy headers received");
++}
++
+ static const char *
+ getproxypass(const char *proxyuser, const char *proxyhost)
+ {
+@@ -332,16 +355,154 @@
+ 		    strncmp((char*)buf, "HTTP/1.1 200 ", 12) != 0)
+ 			errx(1, "Proxy error: \"%s\"", buf);
+ 
+-		/* Headers continue until we hit an empty line */
+-		for (r = 0; r < HTTP_MAXHDRS; r++) {
+-			proxy_read_line(proxyfd, (char*)buf, sizeof(buf));
+-			if (*buf == '\0')
+-				break;
+-		}
+-		if (*buf != '\0')
+-			errx(1, "Too many proxy headers received");
++		proxy_skip_headers(proxyfd);
++
+ 	} else
+ 		errx(1, "Unknown proxy protocol %d", socksv);
+ 
+ 	return (proxyfd);
+ }
++
++int
++proxy_read_connection_request(int request_sock, const char **hostp, const char **portp) 
++{
++	char buf[1024];
++	uint16_t p = 0;
++	
++	*hostp = NULL;
++	*portp = NULL;
++	
++	read_or_err(request_sock, buf, 1);
++
++	switch (buf[0]) {
++	case SOCKS_V4:
++		read_or_err(request_sock, buf+1, 7);
++		if (buf[1] == SOCKS_CONNECT) {
++			p = ntohs(*(uint16_t*)(buf+2));
++			uint32_t ip = ntohl(*(uint32_t*)(buf+4));
++			/* skip user name */
++			for (buf[8] = 255; buf[8] != 0; read_or_err(request_sock, buf+8, 1));
++			if (ip > 0 && ip < 256) { /* SOCKSv4a with destination host as string */
++				int off = 8;
++				/* read destination string */
++				for (;;) {
++					if (off >= sizeof(buf))
++						errx(1, "Destination string in SOCKSv4a request too long");
++					read_or_err(request_sock, buf+off, 1);
++					if (buf[off++] == 0)
++						break;
++				}
++				if ((*hostp = strdup(buf+8)) == NULL)
++					err(1, "strdup");
++				if (**hostp == 0)
++					errx(1, "Empty destination in SOCKSv4a request");
++			} else { /* SOCKSv4 with numeric IP as destination */
++				if (0 >= asprintf(hostp, "%u.%u.%u.%u", (ip >> 24) & 255, (ip >> 16) & 255, (ip >> 7) & 255, ip & 255 ))
++					err(1, "could not convert IP address to string");
++			}
++			
++			if (0 >= asprintf(portp, "%u", (unsigned)p))
++					err(1, "could not convert port to string");
++
++			break;
++		}
++		errx(1, "Illegal SOCKSv4 request"); /* Do not include untrusted user strings in printout! */
++	case SOCKS_V5: 
++	{
++		int auth_method = SOCKS_NOMETHOD;
++		int count;
++		read_or_err(request_sock, buf+1, 1);
++		for (count = buf[1]; count > 0; --count) {
++			read_or_err(request_sock, buf+1, 1);
++			if (buf[1] == SOCKS_NOAUTH)
++				auth_method = SOCKS_NOAUTH;
++		}
++		
++		buf[1] = auth_method;
++		if (2 != atomicio(vwrite, request_sock, buf, 2))
++			err(1, "write failed");
++		
++		if (auth_method == SOCKS_NOMETHOD)
++			errx(1, "SOCKSv5 request with no compatible authentication method");
++		
++		read_or_err(request_sock, buf, 4);
++		if (buf[0] == SOCKS_V5 && buf[1] == SOCKS_CONNECT && buf[2] == 0) {
++			switch(buf[3]) {
++				case SOCKS_IPV4:
++					read_or_err(request_sock, buf+4, 6);
++					uint32_t ip = ntohl(*(uint32_t*)(buf+4));
++					p = ntohs(*(uint16_t*)(buf+8));
++					if (0 >= asprintf(hostp, "%u.%u.%u.%u", (ip >> 24) & 255, (ip >> 16) & 255, (ip >> 7) & 255, ip & 255 ))
++						err(1, "could not convert IP address to string");
++					break;
++				case SOCKS_IPV6:
++					read_or_err(request_sock, buf+4, 18);
++					p = ntohs(*(uint16_t*)(buf+20));
++					if (0 >= asprintf(hostp, "%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",
++							(int)(unsigned char)buf[4+0], (int)(unsigned char)buf[4+1],
++							(int)(unsigned char)buf[4+2], (int)(unsigned char)buf[4+3],
++							(int)(unsigned char)buf[4+4], (int)(unsigned char)buf[4+5],
++							(int)(unsigned char)buf[4+6], (int)(unsigned char)buf[4+7],
++							(int)(unsigned char)buf[4+8], (int)(unsigned char)buf[4+9],
++							(int)(unsigned char)buf[4+10], (int)(unsigned char)buf[4+11],
++							(int)(unsigned char)buf[4+12], (int)(unsigned char)buf[4+13],
++							(int)(unsigned char)buf[4+14], (int)(unsigned char)buf[4+15]))
++						err(1, "could not convert IPv6 address to string");
++					break;
++				case SOCKS_DOMAIN:
++					read_or_err(request_sock, buf+4, 1);
++					count = (int)(unsigned char)buf[4];
++					if (count == 0)
++						errx(1, "Empty destination in SOCKSv5 request");
++					read_or_err(request_sock, buf+5, count);
++					buf[5+count] = 0;
++					read_or_err(request_sock, buf+5+count+1, 2);
++					p = ntohs(*(uint16_t*)(buf+5+count+1));
++					if ((*hostp = strdup(buf+5)) == NULL)
++						err(1, "strdup");
++					break;
++				default:
++					errx(1, "Unknown SOCKSv5 address type %d", (int)buf[3]);
++			}
++			
++			if (0 >= asprintf(portp, "%u", (unsigned)p))
++				err(1, "could not convert port to string");
++			break;
++		}
++		
++		errx(1, "Illegal SOCKSv5 request"); /* Do not include untrusted user strings in printout! */
++	}
++	case 'C':
++		proxy_read_line(request_sock, buf+1, sizeof(buf)-1);
++		if (strcmp(buf, "CONNECT ") == 0) {
++			char *host = buf+8;
++			char *port = strchr(host, ' ');
++			if (port != NULL && port != host) {
++				*port = 0;
++				port = strrchr(host, ':');
++				if (port != NULL && port != host && port[1] != 0) {
++					*port++ = 0;
++					if (((*hostp = strdup(host)) == NULL) || ((*portp = strdup(port)) == NULL))
++						err(1, "strdup");
++					proxy_skip_headers(request_sock);
++					break;
++				}
++			}
++		}
++		errx(1, "Unknown proxy protocol"); /* Do not include untrusted user strings in printout! */
++	default:
++		errx(1, "Unknown proxy protocol %d", (int)buf[0]);
++	}
++
++	return buf[0];
++}
++
++void
++proxy_send_error_reply(int request_sock, int proxy_proto)
++{
++}
++
++void
++proxy_send_success_reply(int request_sock, int proxy_proto, int peer_sock)
++{
++}
