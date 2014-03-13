@@ -475,7 +475,7 @@ proxy_read_connection_request(int request_sock, char **hostp, char **portp)
 	}
 	case 'C':
 		proxy_read_line(request_sock, buf+1, sizeof(buf)-1);
-		if (strcmp(buf, "CONNECT ") == 0) {
+		if (strncmp(buf, "CONNECT ", 8) == 0) {
 			char *host = buf+8;
 			char *port = strchr(host, ' ');
 			if (port != NULL && port != host) {
@@ -555,8 +555,8 @@ proxy_send_success_reply(int request_sock, int proxy_proto, int peer_sock)
 	case AF_INET:
 		memcpy(v4reply+4, &((struct sockaddr_in*)&sa)->sin_addr, 4);
 		memcpy(v4reply+2, &((struct sockaddr_in*)&sa)->sin_port, 2);
-		memcpy(v5reply4+4, &((struct sockaddr_in6*)&sa)->sin6_addr, 4);
-		memcpy(v5reply4+8, &((struct sockaddr_in6*)&sa)->sin6_port, 2);
+		memcpy(v5reply4+4, &((struct sockaddr_in*)&sa)->sin_addr, 4);
+		memcpy(v5reply4+8, &((struct sockaddr_in*)&sa)->sin_port, 2);
 		break;
 	case AF_INET6:
 		if (proxy_proto == SOCKS_V4) {
