@@ -162,7 +162,7 @@ void	readwrite(int);
 int	remote_connect(const char *, const char *, struct addrinfo);
 int	socks_connect(const char *, const char *, struct addrinfo,
 	    const char *, const char *, struct addrinfo, int, const char *, char*);
-int	proxy_read_connection_request(int request_sock, const char **host, const char **port);
+int	proxy_read_connection_request(int request_sock, char **host, char **port);
 void	proxy_send_error_reply(int request_sock, int proxy_proto);
 void	proxy_send_success_reply(int request_sock, int proxy_proto, int peer_sock);
 int	udptest(int);
@@ -541,14 +541,16 @@ main(int argc, char *argv[])
 		if (uflag)
 			errx(1, "no 2nd endpoint support for UDP mode");
 
+		/* Make it possible to use == and != instead of strcmp() */
 		if (strcmp(endpoint2, PROXY) == 0)
 			endpoint2 = PROXY;
 
 		endpoint2port = strrchr(endpoint2, ':');
 		endpoint2host = endpoint2;
-		if (endpoint2port == NULL && endpoint2 != PROXY)
-			errx(1, "port missing in -2 address: %s", endpoint2);
-		else
+		if (endpoint2port == NULL) {
+			if (endpoint2 != PROXY)
+				errx(1, "port missing in -2 address: %s", endpoint2);
+		} else
 			*endpoint2port++ = 0;
 	}
 
@@ -1057,7 +1059,7 @@ static void connect_stdin_stdout_to(int request_sock, const char *endpoint2host,
 		return;
 
 	if (is_proxy)
-		proxy_proto = proxy_read_connection_request(request_sock, &endpoint2host, &endpoint2port);
+		proxy_proto = proxy_read_connection_request(request_sock, (char**)&endpoint2host, (char**)&endpoint2port);
 
 	if (xflag)
 		s = socks_connect(endpoint2host, endpoint2port, hints,

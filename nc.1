@@ -121,6 +121,18 @@ as well.
 may not be combined with the
 .Fl u
 option.
+SECURITY WARNING!
+.Nm
+will proxy to any destination it can reach, including localhost and
+non-public IP addresses such as 192.168.1.1. Running
+.Nm
+in proxy mode on a publicly visible machine without a firewall
+imposing strict limits on who can connect to
+.Nm
+and/or a per-application or per-user firewall restricting which
+destinations the
+.Nm
+process can connect to is usually a bad idea.
 .It Fl 4
 Forces
 .Nm

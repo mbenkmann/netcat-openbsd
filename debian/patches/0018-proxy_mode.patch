@@ -1,6 +1,6 @@
 --- a/nc.1
 +++ b/nc.1
-@@ -101,14 +101,24 @@
+@@ -101,16 +101,38 @@
  .Ar endpoint2
  instead of using stdin+stdout as 2nd endpoint.
  .Ar endpoint2
@@ -29,7 +29,21 @@
 +may not be combined with the
  .Fl u
  option.
++SECURITY WARNING!
++.Nm
++will proxy to any destination it can reach, including localhost and
++non-public IP addresses such as 192.168.1.1. Running
++.Nm
++in proxy mode on a publicly visible machine without a firewall
++imposing strict limits on who can connect to
++.Nm
++and/or a per-application or per-user firewall restricting which
++destinations the
++.Nm
++process can connect to is usually a bad idea.
  .It Fl 4
+ Forces
+ .Nm
 --- a/netcat.c
 +++ b/netcat.c
 @@ -118,6 +118,8 @@
@@ -45,7 +59,7 @@
  int	remote_connect(const char *, const char *, struct addrinfo);
  int	socks_connect(const char *, const char *, struct addrinfo,
  	    const char *, const char *, struct addrinfo, int, const char *, char*);
-+int	proxy_read_connection_request(int request_sock, const char **host, const char **port);
++int	proxy_read_connection_request(int request_sock, char **host, char **port);
 +void	proxy_send_error_reply(int request_sock, int proxy_proto);
 +void	proxy_send_success_reply(int request_sock, int proxy_proto, int peer_sock);
  int	udptest(int);
@@ -60,10 +74,11 @@
  	struct addrinfo hints, const char *proxyhost, const char *proxyport,
  	struct addrinfo proxyhints, int socksv, const char *proxyuser, char *headers);
  static void shutdown_endpoint2(const char *endpoint2host);
-@@ -536,11 +541,15 @@
+@@ -536,11 +541,17 @@
  		if (uflag)
  			errx(1, "no 2nd endpoint support for UDP mode");
  
++		/* Make it possible to use == and != instead of strcmp() */
 +		if (strcmp(endpoint2, PROXY) == 0)
 +			endpoint2 = PROXY;
 +
@@ -72,14 +87,15 @@
 -			errx(1, "port missing in -2 address: %s", endpoint2);
 -		*endpoint2port++ = 0;
  		endpoint2host = endpoint2;
-+		if (endpoint2port == NULL && endpoint2 != PROXY)
-+			errx(1, "port missing in -2 address: %s", endpoint2);
-+		else
++		if (endpoint2port == NULL) {
++			if (endpoint2 != PROXY)
++				errx(1, "port missing in -2 address: %s", endpoint2);
++		} else
 +			*endpoint2port++ = 0;
  	}
  
  	if (lflag) {
-@@ -649,7 +658,7 @@
+@@ -649,7 +660,7 @@
  				}
                                  if(!kflag)
                                          close(s);
@@ -88,7 +104,7 @@
  				readwrite(connfd);
  				shutdown_endpoint2(endpoint2host);
  				close(connfd);
-@@ -678,7 +687,7 @@
+@@ -678,7 +689,7 @@
  			ret = 0;
  
  			if ((s = unix_connect(host)) > 0 && !zflag) {
@@ -97,7 +113,7 @@
  				readwrite(s);
  				shutdown_endpoint2(endpoint2host);
  				close(s);
-@@ -751,7 +760,7 @@
+@@ -751,7 +762,7 @@
  				    sv ? sv->s_name : "*");
  			}
  			if (!zflag)
@@ -106,7 +122,7 @@
  				readwrite(s);
  				shutdown_endpoint2(endpoint2host);
  		}
-@@ -1036,15 +1045,20 @@
+@@ -1036,15 +1047,20 @@
  	return (err != 0)? CONNECTION_FAILED : CONNECTION_SUCCESS;
  }
  
@@ -123,12 +139,12 @@
  		return;
  
 +	if (is_proxy)
-+		proxy_proto = proxy_read_connection_request(request_sock, &endpoint2host, &endpoint2port);
++		proxy_proto = proxy_read_connection_request(request_sock, (char**)&endpoint2host, (char**)&endpoint2port);
 +
  	if (xflag)
  		s = socks_connect(endpoint2host, endpoint2port, hints,
  		    proxyhost, proxyport, proxyhints, socksv,
-@@ -1052,11 +1066,23 @@
+@@ -1052,11 +1068,23 @@
  	else
  		s = remote_connect(endpoint2host, endpoint2port, hints);
  
@@ -156,17 +172,18 @@
  }
 --- a/socks.c
 +++ b/socks.c
-@@ -57,6 +57,9 @@
+@@ -57,6 +57,10 @@
  int	socks_connect(const char *, const char *, struct addrinfo,
  	    const char *, const char *, struct addrinfo, int,
  	    const char *, char*);
-+int	proxy_read_connection_request(int request_sock, const char **host, const char **port);
++int	proxy_read_connection_request(int request_sock, char **host, char **port);
 +void	proxy_send_error_reply(int request_sock, int proxy_proto);
 +void	proxy_send_success_reply(int request_sock, int proxy_proto, int peer_sock);
++int	asprintf(char **strp, const char *fmt, ...);
  
  static int
  decode_addrport(const char *h, const char *p, struct sockaddr *addr,
-@@ -87,6 +90,13 @@
+@@ -87,6 +91,13 @@
  	return (0);
  }
  
@@ -180,7 +197,7 @@
  static int
  proxy_read_line(int fd, char *buf, size_t bufsz)
  {
-@@ -109,6 +119,19 @@
+@@ -109,6 +120,19 @@
  	return (off);
  }
  
@@ -200,7 +217,16 @@
  static const char *
  getproxypass(const char *proxyuser, const char *proxyhost)
  {
-@@ -332,16 +355,154 @@
+@@ -189,7 +213,7 @@
+ 			buf[2] = 0;
+ 			buf[3] = SOCKS_DOMAIN;
+ 			buf[4] = hlen;
+-			memcpy(buf + 5, host, hlen);			
++			memcpy(buf + 5, host, hlen);
+ 			memcpy(buf + 5 + hlen, &serverport, sizeof serverport);
+ 			wlen = 7 + hlen;
+ 			break;
+@@ -332,16 +356,239 @@
  		    strncmp((char*)buf, "HTTP/1.1 200 ", 12) != 0)
  			errx(1, "Proxy error: \"%s\"", buf);
  
@@ -221,14 +247,14 @@
  }
 +
 +int
-+proxy_read_connection_request(int request_sock, const char **hostp, const char **portp) 
++proxy_read_connection_request(int request_sock, char **hostp, char **portp)
 +{
 +	char buf[1024];
 +	uint16_t p = 0;
-+	
++
 +	*hostp = NULL;
 +	*portp = NULL;
-+	
++
 +	read_or_err(request_sock, buf, 1);
 +
 +	switch (buf[0]) {
@@ -257,14 +283,14 @@
 +				if (0 >= asprintf(hostp, "%u.%u.%u.%u", (ip >> 24) & 255, (ip >> 16) & 255, (ip >> 7) & 255, ip & 255 ))
 +					err(1, "could not convert IP address to string");
 +			}
-+			
++
 +			if (0 >= asprintf(portp, "%u", (unsigned)p))
 +					err(1, "could not convert port to string");
 +
 +			break;
 +		}
 +		errx(1, "Illegal SOCKSv4 request"); /* Do not include untrusted user strings in printout! */
-+	case SOCKS_V5: 
++	case SOCKS_V5:
 +	{
 +		int auth_method = SOCKS_NOMETHOD;
 +		int count;
@@ -274,14 +300,14 @@
 +			if (buf[1] == SOCKS_NOAUTH)
 +				auth_method = SOCKS_NOAUTH;
 +		}
-+		
++
 +		buf[1] = auth_method;
 +		if (2 != atomicio(vwrite, request_sock, buf, 2))
 +			err(1, "write failed");
-+		
++
 +		if (auth_method == SOCKS_NOMETHOD)
 +			errx(1, "SOCKSv5 request with no compatible authentication method");
-+		
++
 +		read_or_err(request_sock, buf, 4);
 +		if (buf[0] == SOCKS_V5 && buf[1] == SOCKS_CONNECT && buf[2] == 0) {
 +			switch(buf[3]) {
@@ -321,12 +347,12 @@
 +				default:
 +					errx(1, "Unknown SOCKSv5 address type %d", (int)buf[3]);
 +			}
-+			
++
 +			if (0 >= asprintf(portp, "%u", (unsigned)p))
 +				err(1, "could not convert port to string");
 +			break;
 +		}
-+		
++
 +		errx(1, "Illegal SOCKSv5 request"); /* Do not include untrusted user strings in printout! */
 +	}
 +	case 'C':
@@ -357,9 +383,94 @@
 +void
 +proxy_send_error_reply(int request_sock, int proxy_proto)
 +{
++	char* reply = NULL;
++	int replylen = 0;
++	char v4reply[8] = {0, 91, 0, 0, 0, 0, 0, 0};
++	char v5reply[10] = {SOCKS_V5, 1, 0, SOCKS_IPV4, 0, 0, 0, 0, 0, 0};
++	char* creply = "HTTP/1.1 503 Service Unavailable\r\nProxy-Connection: close\r\nConnection: close\r\n\r\n";
++
++	switch(proxy_proto) {
++	case SOCKS_V4:
++		reply = v4reply;
++		replylen = sizeof(v4reply);
++		break;
++	case SOCKS_V5:
++		reply = v5reply;
++		replylen = sizeof(v5reply);
++		break;
++	case 'C':
++		reply = creply;
++		replylen = strlen(creply);
++		break;
++	default:
++		errx(1, "can't happen (strange proxy protocol)");
++	}
++
++	if (replylen != atomicio(vwrite, request_sock, reply, replylen))
++		warn("write failed");
 +}
 +
 +void
 +proxy_send_success_reply(int request_sock, int proxy_proto, int peer_sock)
 +{
++	char* reply = NULL;
++	int replylen = 0;
++	struct sockaddr_storage sa;
++	socklen_t salen = sizeof(sa);
++
++	if (proxy_proto == 'C') {
++		char* creply = "HTTP/1.1 200 Connection established\r\n\r\n";
++		replylen = strlen(creply);
++		if (replylen != atomicio(vwrite, request_sock, creply, replylen))
++			warn("write failed");
++		return;
++	}
++
++	if (getpeername(peer_sock, (void*)&sa, &salen) != 0)
++		err(1, "getpeername");
++
++	char v4reply[8] = {0, 90, 0, 0, 0, 0, 0, 0};
++	char v5reply4[10] = {SOCKS_V5, 0, 0, SOCKS_IPV4, 0, 0, 0, 0, 0, 0};
++	char v5reply6[22] = {SOCKS_V5, 0, 0, SOCKS_IPV6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0};
++
++	switch(sa.ss_family) {
++	case AF_INET:
++		memcpy(v4reply+4, &((struct sockaddr_in*)&sa)->sin_addr, 4);
++		memcpy(v4reply+2, &((struct sockaddr_in*)&sa)->sin_port, 2);
++		memcpy(v5reply4+4, &((struct sockaddr_in6*)&sa)->sin6_addr, 4);
++		memcpy(v5reply4+8, &((struct sockaddr_in6*)&sa)->sin6_port, 2);
++		break;
++	case AF_INET6:
++		if (proxy_proto == SOCKS_V4) {
++			warn("SOCKSv4 connection to IPv6 destination");
++			break;
++		}
++		memcpy(v5reply6+4, &((struct sockaddr_in6*)&sa)->sin6_addr, 16);
++		memcpy(v5reply6+20, &((struct sockaddr_in6*)&sa)->sin6_port, 2);
++		break;
++	default:
++		errx(1, "can't happen (socket neither AF_INET nor AF_INET6)");
++	}
++
++	switch(proxy_proto) {
++	case SOCKS_V4:
++		reply = v4reply;
++		replylen = sizeof(v4reply);
++		break;
++	case SOCKS_V5:
++		if (sa.ss_family == AF_INET) {
++			reply = v5reply4;
++			replylen = sizeof(v5reply4);
++		} else {
++			reply = v5reply6;
++			replylen = sizeof(v5reply6);
++		}
++
++		break;
++	default:
++		errx(1, "can't happen (strange proxy protocol)");
++	}
++
++	if (replylen != atomicio(vwrite, request_sock, reply, replylen))
++		warn("write failed");
 +}
