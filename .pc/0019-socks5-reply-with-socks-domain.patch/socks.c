@@ -252,11 +252,6 @@ socks_connect(const char *host, const char *port,
 		if (buf[1] != 0)
 			errx(1, "connection failed, SOCKS error %d", buf[1]);
 		switch (buf[3]) {
-		case SOCKS_DOMAIN:
-			read_or_err(proxyfd, buf+4, 1);
-			cnt = (unsigned char)buf[4];
-			read_or_err(proxyfd, buf+5, cnt+2);
-			break;
 		case SOCKS_IPV4:
 			cnt = atomicio(read, proxyfd, buf + 4, 6);
 			if (cnt != 6)
