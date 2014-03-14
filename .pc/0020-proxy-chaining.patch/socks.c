@@ -41,6 +41,8 @@
 #include <bsd/readpassphrase.h>
 #include "atomicio.h"
 
+#define SOCKS_PORT	"1080"
+#define HTTP_PROXY_PORT	"3128"
 #define HTTP_MAXHDRS	64
 #define SOCKS_V5	5
 #define SOCKS_V4	4
@@ -52,8 +54,8 @@
 #define SOCKS_IPV6	4
 
 int	remote_connect(const char *, const char *, struct addrinfo);
-int	recursive_connect(const char *, const char *, struct addrinfo,
-	    const char *[], const char *[], struct addrinfo, int,
+int	socks_connect(const char *, const char *, struct addrinfo,
+	    const char *, const char *, struct addrinfo, int,
 	    const char *, char*);
 int	proxy_read_connection_request(int request_sock, char **host, char **port);
 void	proxy_send_error_reply(int request_sock, int proxy_proto);
@@ -145,9 +147,9 @@ getproxypass(const char *proxyuser, const char *proxyhost)
 }
 
 int
-recursive_connect(const char *host, const char *port,
+socks_connect(const char *host, const char *port,
     struct addrinfo hints __attribute__ ((__unused__)),
-    const char *proxyhost[], const char *proxyport[], struct addrinfo proxyhints,
+    const char *proxyhost, const char *proxyport, struct addrinfo proxyhints,
     int socksv, const char *proxyuser, char* headers)
 {
 	int proxyfd, r, authretry = 0;
@@ -160,9 +162,8 @@ recursive_connect(const char *host, const char *port,
 	in_port_t serverport;
 	const char *proxypass = NULL;
 
-	if (proxyhost == NULL || proxyhost[0] == NULL || proxyhost[0][0] == 0)
-		return remote_connect(host, port, hints);
-
+	if (proxyport == NULL)
+		proxyport = (socksv == -1) ? HTTP_PROXY_PORT : SOCKS_PORT;
 
 	/* Abuse API to lookup port */
 	if (decode_addrport("0.0.0.0", port, (struct sockaddr *)&addr,
@@ -174,7 +175,7 @@ recursive_connect(const char *host, const char *port,
 	if (authretry++ > 3)
 		errx(1, "Too many authentication failures");
 
-	proxyfd = recursive_connect(proxyhost[0], proxyport[0], hints, proxyhost+1, proxyport+1, proxyhints, socksv, proxyuser, headers);
+	proxyfd = remote_connect(proxyhost, proxyport, proxyhints);
 
 	if (proxyfd < 0)
 		return (-1);
@@ -319,7 +320,7 @@ recursive_connect(const char *host, const char *port,
 		if (authretry > 1) {
 			char resp[1024];
 
-			proxypass = getproxypass(proxyuser, proxyhost[0]);
+			proxypass = getproxypass(proxyuser, proxyhost);
 			r = snprintf((char*)buf, sizeof(buf), "%s:%s",
 			    proxyuser, proxypass);
 			if (r == -1 || (size_t)r >= sizeof(buf) ||
