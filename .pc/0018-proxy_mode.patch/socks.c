@@ -57,10 +57,6 @@ int	remote_connect(const char *, const char *, struct addrinfo);
 int	socks_connect(const char *, const char *, struct addrinfo,
 	    const char *, const char *, struct addrinfo, int,
 	    const char *, char*);
-int	proxy_read_connection_request(int request_sock, char **host, char **port);
-void	proxy_send_error_reply(int request_sock, int proxy_proto);
-void	proxy_send_success_reply(int request_sock, int proxy_proto, int peer_sock);
-int	asprintf(char **strp, const char *fmt, ...);
 
 static int
 decode_addrport(const char *h, const char *p, struct sockaddr *addr,
@@ -91,13 +87,6 @@ decode_addrport(const char *h, const char *p, struct sockaddr *addr,
 	return (0);
 }
 
-static void
-read_or_err(int fd, void *buf, size_t count) {
-        size_t cnt = atomicio(read, fd, buf, count);
-	if (cnt != count)
-                err(1, "read failed (%zu/%zu)", cnt, count);
-}
-
 static int
 proxy_read_line(int fd, char *buf, size_t bufsz)
 {
@@ -118,19 +107,6 @@ proxy_read_line(int fd, char *buf, size_t bufsz)
 		off++;
 	}
 	return (off);
-}
-
-static void
-proxy_skip_headers(int proxyfd) {
-	char buf[1024];
-	int r;
-	/* Headers continue until we hit an empty line */
-	for (r = 0; r < HTTP_MAXHDRS; r++) {
-		proxy_read_line(proxyfd, buf, sizeof(buf));
-		if (*buf == '\0')
-			return;
-	}
-	errx(1, "Too many proxy headers received");
 }
 
 static const char *
@@ -213,7 +189,7 @@ socks_connect(const char *host, const char *port,
 			buf[2] = 0;
 			buf[3] = SOCKS_DOMAIN;
 			buf[4] = hlen;
-			memcpy(buf + 5, host, hlen);
+			memcpy(buf + 5, host, hlen);			
 			memcpy(buf + 5 + hlen, &serverport, sizeof serverport);
 			wlen = 7 + hlen;
 			break;
@@ -356,239 +332,16 @@ socks_connect(const char *host, const char *port,
 		    strncmp((char*)buf, "HTTP/1.1 200 ", 12) != 0)
 			errx(1, "Proxy error: \"%s\"", buf);
 
-		proxy_skip_headers(proxyfd);
-
+		/* Headers continue until we hit an empty line */
+		for (r = 0; r < HTTP_MAXHDRS; r++) {
+			proxy_read_line(proxyfd, (char*)buf, sizeof(buf));
+			if (*buf == '\0')
+				break;
+		}
+		if (*buf != '\0')
+			errx(1, "Too many proxy headers received");
 	} else
 		errx(1, "Unknown proxy protocol %d", socksv);
 
 	return (proxyfd);
-}
-
-int
-proxy_read_connection_request(int request_sock, char **hostp, char **portp)
-{
-	char buf[1024];
-	uint16_t p = 0;
-
-	*hostp = NULL;
-	*portp = NULL;
-
-	read_or_err(request_sock, buf, 1);
-
-	switch (buf[0]) {
-	case SOCKS_V4:
-		read_or_err(request_sock, buf+1, 7);
-		if (buf[1] == SOCKS_CONNECT) {
-			p = ntohs(*(uint16_t*)(buf+2));
-			uint32_t ip = ntohl(*(uint32_t*)(buf+4));
-			/* skip user name */
-			for (buf[8] = 255; buf[8] != 0; read_or_err(request_sock, buf+8, 1));
-			if (ip > 0 && ip < 256) { /* SOCKSv4a with destination host as string */
-				int off = 8;
-				/* read destination string */
-				for (;;) {
-					if (off >= sizeof(buf))
-						errx(1, "Destination string in SOCKSv4a request too long");
-					read_or_err(request_sock, buf+off, 1);
-					if (buf[off++] == 0)
-						break;
-				}
-				if ((*hostp = strdup(buf+8)) == NULL)
-					err(1, "strdup");
-				if (**hostp == 0)
-					errx(1, "Empty destination in SOCKSv4a request");
-			} else { /* SOCKSv4 with numeric IP as destination */
-				if (0 >= asprintf(hostp, "%u.%u.%u.%u", (ip >> 24) & 255, (ip >> 16) & 255, (ip >> 8) & 255, ip & 255 ))
-					err(1, "could not convert IP address to string");
-			}
-
-			if (0 >= asprintf(portp, "%u", (unsigned)p))
-					err(1, "could not convert port to string");
-
-			break;
-		}
-		errx(1, "Illegal SOCKSv4 request"); /* Do not include untrusted user strings in printout! */
-	case SOCKS_V5:
-	{
-		int auth_method = SOCKS_NOMETHOD;
-		int count;
-		read_or_err(request_sock, buf+1, 1);
-		for (count = buf[1]; count > 0; --count) {
-			read_or_err(request_sock, buf+1, 1);
-			if (buf[1] == SOCKS_NOAUTH)
-				auth_method = SOCKS_NOAUTH;
-		}
-
-		buf[1] = auth_method;
-		if (2 != atomicio(vwrite, request_sock, buf, 2))
-			err(1, "write failed");
-
-		if (auth_method == SOCKS_NOMETHOD)
-			errx(1, "SOCKSv5 request with no compatible authentication method");
-
-		read_or_err(request_sock, buf, 4);
-		if (buf[0] == SOCKS_V5 && buf[1] == SOCKS_CONNECT && buf[2] == 0) {
-			switch(buf[3]) {
-				case SOCKS_IPV4:
-					read_or_err(request_sock, buf+4, 6);
-					uint32_t ip = ntohl(*(uint32_t*)(buf+4));
-					p = ntohs(*(uint16_t*)(buf+8));
-					if (0 >= asprintf(hostp, "%u.%u.%u.%u", (ip >> 24) & 255, (ip >> 16) & 255, (ip >> 8) & 255, ip & 255 ))
-						err(1, "could not convert IP address to string");
-					break;
-				case SOCKS_IPV6:
-					read_or_err(request_sock, buf+4, 18);
-					p = ntohs(*(uint16_t*)(buf+20));
-					if (0 >= asprintf(hostp, "%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",
-							(int)(unsigned char)buf[4+0], (int)(unsigned char)buf[4+1],
-							(int)(unsigned char)buf[4+2], (int)(unsigned char)buf[4+3],
-							(int)(unsigned char)buf[4+4], (int)(unsigned char)buf[4+5],
-							(int)(unsigned char)buf[4+6], (int)(unsigned char)buf[4+7],
-							(int)(unsigned char)buf[4+8], (int)(unsigned char)buf[4+9],
-							(int)(unsigned char)buf[4+10], (int)(unsigned char)buf[4+11],
-							(int)(unsigned char)buf[4+12], (int)(unsigned char)buf[4+13],
-							(int)(unsigned char)buf[4+14], (int)(unsigned char)buf[4+15]))
-						err(1, "could not convert IPv6 address to string");
-					break;
-				case SOCKS_DOMAIN:
-					read_or_err(request_sock, buf+4, 1);
-					count = (int)(unsigned char)buf[4];
-					if (count == 0)
-						errx(1, "Empty destination in SOCKSv5 request");
-					read_or_err(request_sock, buf+5, count);
-					buf[5+count] = 0;
-					read_or_err(request_sock, buf+5+count+1, 2);
-					p = ntohs(*(uint16_t*)(buf+5+count+1));
-					if ((*hostp = strdup(buf+5)) == NULL)
-						err(1, "strdup");
-					break;
-				default:
-					errx(1, "Unknown SOCKSv5 address type %d", (int)buf[3]);
-			}
-
-			if (0 >= asprintf(portp, "%u", (unsigned)p))
-				err(1, "could not convert port to string");
-			break;
-		}
-
-		errx(1, "Illegal SOCKSv5 request"); /* Do not include untrusted user strings in printout! */
-	}
-	case 'C':
-		proxy_read_line(request_sock, buf+1, sizeof(buf)-1);
-		if (strncmp(buf, "CONNECT ", 8) == 0) {
-			char *host = buf+8;
-			char *port = strchr(host, ' ');
-			if (port != NULL && port != host) {
-				*port = 0;
-				port = strrchr(host, ':');
-				if (port != NULL && port != host && port[1] != 0) {
-					*port++ = 0;
-					if (((*hostp = strdup(host)) == NULL) || ((*portp = strdup(port)) == NULL))
-						err(1, "strdup");
-					proxy_skip_headers(request_sock);
-					break;
-				}
-			}
-		}
-		errx(1, "Unknown proxy protocol"); /* Do not include untrusted user strings in printout! */
-	default:
-		errx(1, "Unknown proxy protocol %d", (int)buf[0]);
-	}
-
-	return buf[0];
-}
-
-void
-proxy_send_error_reply(int request_sock, int proxy_proto)
-{
-	char* reply = NULL;
-	int replylen = 0;
-	char v4reply[8] = {0, 91, 0, 0, 0, 0, 0, 0};
-	char v5reply[10] = {SOCKS_V5, 1, 0, SOCKS_IPV4, 0, 0, 0, 0, 0, 0};
-	char* creply = "HTTP/1.1 503 Service Unavailable\r\nProxy-Connection: close\r\nConnection: close\r\n\r\n";
-
-	switch(proxy_proto) {
-	case SOCKS_V4:
-		reply = v4reply;
-		replylen = sizeof(v4reply);
-		break;
-	case SOCKS_V5:
-		reply = v5reply;
-		replylen = sizeof(v5reply);
-		break;
-	case 'C':
-		reply = creply;
-		replylen = strlen(creply);
-		break;
-	default:
-		errx(1, "can't happen (strange proxy protocol)");
-	}
-
-	if (replylen != atomicio(vwrite, request_sock, reply, replylen))
-		warn("write failed");
-}
-
-void
-proxy_send_success_reply(int request_sock, int proxy_proto, int peer_sock)
-{
-	char* reply = NULL;
-	int replylen = 0;
-	struct sockaddr_storage sa;
-	socklen_t salen = sizeof(sa);
-
-	if (proxy_proto == 'C') {
-		char* creply = "HTTP/1.1 200 Connection established\r\n\r\n";
-		replylen = strlen(creply);
-		if (replylen != atomicio(vwrite, request_sock, creply, replylen))
-			warn("write failed");
-		return;
-	}
-
-	if (getpeername(peer_sock, (void*)&sa, &salen) != 0)
-		err(1, "getpeername");
-
-	char v4reply[8] = {0, 90, 0, 0, 0, 0, 0, 0};
-	char v5reply4[10] = {SOCKS_V5, 0, 0, SOCKS_IPV4, 0, 0, 0, 0, 0, 0};
-	char v5reply6[22] = {SOCKS_V5, 0, 0, SOCKS_IPV6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0};
-
-	switch(sa.ss_family) {
-	case AF_INET:
-		memcpy(v4reply+4, &((struct sockaddr_in*)&sa)->sin_addr, 4);
-		memcpy(v4reply+2, &((struct sockaddr_in*)&sa)->sin_port, 2);
-		memcpy(v5reply4+4, &((struct sockaddr_in*)&sa)->sin_addr, 4);
-		memcpy(v5reply4+8, &((struct sockaddr_in*)&sa)->sin_port, 2);
-		break;
-	case AF_INET6:
-		if (proxy_proto == SOCKS_V4) {
-			warn("SOCKSv4 connection to IPv6 destination");
-			break;
-		}
-		memcpy(v5reply6+4, &((struct sockaddr_in6*)&sa)->sin6_addr, 16);
-		memcpy(v5reply6+20, &((struct sockaddr_in6*)&sa)->sin6_port, 2);
-		break;
-	default:
-		errx(1, "can't happen (socket neither AF_INET nor AF_INET6)");
-	}
-
-	switch(proxy_proto) {
-	case SOCKS_V4:
-		reply = v4reply;
-		replylen = sizeof(v4reply);
-		break;
-	case SOCKS_V5:
-		if (sa.ss_family == AF_INET) {
-			reply = v5reply4;
-			replylen = sizeof(v5reply4);
-		} else {
-			reply = v5reply6;
-			replylen = sizeof(v5reply6);
-		}
-
-		break;
-	default:
-		errx(1, "can't happen (strange proxy protocol)");
-	}
-
-	if (replylen != atomicio(vwrite, request_sock, reply, replylen))
-		warn("write failed");
 }

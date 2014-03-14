@@ -101,38 +101,16 @@ has been established, connect to
 .Ar endpoint2
 instead of using stdin+stdout as 2nd endpoint.
 .Ar endpoint2
-may be either a fixed
+must be specified as a
 .Dq host:port
-address or the word
-.Dq proxy
-which tells
-.Nm
-to read a connection request from the primary connection and
-to use the destination in that request as 2nd endpoint.
-The connection request may use HTTP CONNECT, SOCKSv4, SOCKSv4a or SOCKSv5.
-The type of request is auto-detected.
-If
+address. If
 .Fl x
-is used to set a proxy, that same proxy will be used for
+is used to set a proxy, the same proxy will be used for
 connecting to
-.Ar endpoint2
-as well.
-.Fl 2
-may not be combined with the
+.Ar endpoint2 .
+It is an error to use this option in conjunction with the
 .Fl u
 option.
-SECURITY WARNING!
-.Nm
-will proxy to any destination it can reach, including localhost and
-non-public IP addresses such as 192.168.1.1. Running
-.Nm
-in proxy mode on a publicly visible machine without a firewall
-imposing strict limits on who can connect to
-.Nm
-and/or a per-application or per-user firewall restricting which
-destinations the
-.Nm
-process can connect to is usually a bad idea.
 .It Fl 4
 Forces
 .Nm
