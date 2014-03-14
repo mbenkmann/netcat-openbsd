@@ -962,8 +962,8 @@ remote_connect(const char *host, const char *port, struct addrinfo hints)
 			af = af_name(*(short*)res0->ai_addr);
 
                 if ((error = connect_with_timeout(s, res0->ai_addr, res0->ai_addrlen, timeout))== CONNECTION_SUCCESS) {
-			warnx("connect to %s port %s (%s/%s) succeeded", host, port,
-			     proto, af);  
+			if (vflag)
+				warnx("connect to %s port %s (%s/%s) succeeded", host, port, proto, af);
 			break;
 		}
 		else if (vflag && error == CONNECTION_FAILED) {
