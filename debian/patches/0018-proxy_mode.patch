@@ -280,7 +280,7 @@
 +				if (**hostp == 0)
 +					errx(1, "Empty destination in SOCKSv4a request");
 +			} else { /* SOCKSv4 with numeric IP as destination */
-+				if (0 >= asprintf(hostp, "%u.%u.%u.%u", (ip >> 24) & 255, (ip >> 16) & 255, (ip >> 7) & 255, ip & 255 ))
++				if (0 >= asprintf(hostp, "%u.%u.%u.%u", (ip >> 24) & 255, (ip >> 16) & 255, (ip >> 8) & 255, ip & 255 ))
 +					err(1, "could not convert IP address to string");
 +			}
 +
@@ -315,7 +315,7 @@
 +					read_or_err(request_sock, buf+4, 6);
 +					uint32_t ip = ntohl(*(uint32_t*)(buf+4));
 +					p = ntohs(*(uint16_t*)(buf+8));
-+					if (0 >= asprintf(hostp, "%u.%u.%u.%u", (ip >> 24) & 255, (ip >> 16) & 255, (ip >> 7) & 255, ip & 255 ))
++					if (0 >= asprintf(hostp, "%u.%u.%u.%u", (ip >> 24) & 255, (ip >> 16) & 255, (ip >> 8) & 255, ip & 255 ))
 +						err(1, "could not convert IP address to string");
 +					break;
 +				case SOCKS_IPV6:
