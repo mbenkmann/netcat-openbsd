@@ -109,9 +109,6 @@
 #define PORT_MAX	65535
 #define PORT_MAX_LEN	6
 #define UNIX_DG_TMP_SOCKET_SIZE	19
-#define PROXY_CHAIN_MAX 32
-#define SOCKS_PORT	"1080"
-#define HTTP_PROXY_PORT	"3128"
 
 #define CONNECTION_SUCCESS 0
 #define CONNECTION_FAILED 1
@@ -162,8 +159,9 @@ void	build_ports(char **);
 void	help(void);
 int	local_listen(char *, char *, struct addrinfo);
 void	readwrite(int);
-int	recursive_connect(const char *, const char *, struct addrinfo,
-	    const char *[], const char *[], struct addrinfo, int, const char *, char*);
+int	remote_connect(const char *, const char *, struct addrinfo);
+int	socks_connect(const char *, const char *, struct addrinfo,
+	    const char *, const char *, struct addrinfo, int, const char *, char*);
 int	proxy_read_connection_request(int request_sock, char **host, char **port);
 void	proxy_send_error_reply(int request_sock, int proxy_proto);
 void	proxy_send_success_reply(int request_sock, int proxy_proto, int peer_sock);
@@ -180,7 +178,7 @@ const char    *af_name(short af);
 static int connect_with_timeout(int fd, const struct sockaddr *sa,
         socklen_t salen, int ctimeout);
 static void connect_stdin_stdout_to(int request_sock, const char *endpoint2host, const char *endpoint2port,
-	struct addrinfo hints, const char *proxyhost[], const char *proxyport[],
+	struct addrinfo hints, const char *proxyhost, const char *proxyport,
 	struct addrinfo proxyhints, int socksv, const char *proxyuser, char *headers);
 static void shutdown_endpoint2(const char *endpoint2host);
 static void quit();
@@ -233,9 +231,7 @@ main(int argc, char *argv[])
 		struct sockaddr_un forunix;
 	} cliaddr;
 	char *proxy = NULL;
-	const char *errstr;
-	const char *proxyhost[PROXY_CHAIN_MAX+1] = {NULL};
-	const char *proxyport[PROXY_CHAIN_MAX+1] = {NULL};
+	const char *errstr, *proxyhost = "", *proxyport = NULL;
 	char *endpoint2 = NULL;
 	char *endpoint2host = NULL, *endpoint2port = NULL;
 	char* headers = NULL;
@@ -511,48 +507,6 @@ main(int argc, char *argv[])
 	}
 
 	if (xflag) {
-		int i;
-		int proxycount;
-		char* proxypart;
-		char* phost;
-		char* pport;
-
-		for(i = 0; i < PROXY_CHAIN_MAX ; ++i) {
-			proxypart = strsep(&proxy, "+");
-			if (proxypart == NULL) {
-				proxyhost[i] = NULL;
-				proxyport[i] = NULL;
-				break;
-			}
-
-			phost = strsep(&proxypart, ":");
-			if (proxypart == NULL || *proxypart == 0)
-				pport = (socksv == -1) ? HTTP_PROXY_PORT : SOCKS_PORT;
-			else
-				pport = proxypart;
-
-			if (*phost == 0)
-				errx(1, "missing proxy host name");
-			proxyhost[i] = phost;
-			proxyport[i] = pport;
-		}
-
-		proxycount = i;
-		if (proxycount >= PROXY_CHAIN_MAX)
-			errx(1, "proxy chain too long");
-
-		proxy = (char*)proxyhost[0]; /* restore original pointer in case someone wants to free() it. */
-
-		/* Reverse proxy chain so that exit proxy is element 0 */
-		for (i = 0; i < (proxycount >> 1); ++i) {
-			const char* tmp = proxyhost[i];
-			proxyhost[i] = proxyhost[proxycount - i - 1];
-			proxyhost[proxycount - i - 1] = tmp;
-			tmp = proxyport[i];
-			proxyport[i] = proxyport[proxycount - i - 1];
-			proxyport[proxycount - i - 1] = tmp;
-		}
-
 		if (uflag)
 			errx(1, "no proxy support for UDP mode");
 # if defined(IPPROTO_DCCP) && defined(SOCK_DCCP)
@@ -572,6 +526,8 @@ main(int argc, char *argv[])
 		if (sflag)
 			errx(1, "no proxy support for local source address");
 
+		proxyhost = strsep(&proxy, ":");
+		proxyport = proxy;
 
 		memset(&proxyhints, 0, sizeof(struct addrinfo));
 		proxyhints.ai_family = family;
@@ -769,9 +725,12 @@ main(int argc, char *argv[])
 				continue;
 			}
 			
-			s = recursive_connect(host, portlist[i], hints,
-			    proxyhost, proxyport, proxyhints, socksv,
-			    Pflag, headers);
+			if (xflag)
+				s = socks_connect(host, portlist[i], hints,
+				    proxyhost, proxyport, proxyhints, socksv,
+				    Pflag, headers);
+			else
+				s = remote_connect(host, portlist[i], hints);
 
 			if (s < 0)
 				continue;
@@ -1089,7 +1048,7 @@ static int connect_with_timeout(int fd, const struct sockaddr *sa,
 }
 
 static void connect_stdin_stdout_to(int request_sock, const char *endpoint2host, const char *endpoint2port,
-	struct addrinfo hints, const char *proxyhost[], const char *proxyport[],
+	struct addrinfo hints, const char *proxyhost, const char *proxyport,
 	struct addrinfo proxyhints, int socksv, const char *proxyuser, char *headers)
 {
 	int s;
@@ -1102,9 +1061,12 @@ static void connect_stdin_stdout_to(int request_sock, const char *endpoint2host,
 	if (is_proxy)
 		proxy_proto = proxy_read_connection_request(request_sock, (char**)&endpoint2host, (char**)&endpoint2port);
 
-	s = recursive_connect(endpoint2host, endpoint2port, hints,
-	    proxyhost, proxyport, proxyhints, socksv,
-	    proxyuser, headers);
+	if (xflag)
+		s = socks_connect(endpoint2host, endpoint2port, hints,
+		    proxyhost, proxyport, proxyhints, socksv,
+		    proxyuser, headers);
+	else
+		s = remote_connect(endpoint2host, endpoint2port, hints);
 
 	if (s < 0) {
 		if (is_proxy)

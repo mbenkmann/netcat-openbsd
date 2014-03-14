@@ -17,3 +17,4 @@
 0017-remove_unused_timeout_connect.patch
 0018-proxy_mode.patch
 0019-socks5-reply-with-socks-domain.patch
+0020-proxy-chaining.patch

@@ -300,25 +300,21 @@ and
 (HTTPS proxy).
 If the protocol is not specified, SOCKS version 5 is used.
 .It Xo
-.Fl x Ar proxy1 Ns Oo : Ns
-.Ar port1 Oc Ns Oo + Ns Ar proxy2 Ns Oo : Ns Ar port2 Ns Oc Ns ... Oc
+.Fl x Ar proxy_address Ns Oo : Ns
+.Ar port Oc
 .Xc
 Requests that
 .Nm
 should connect to
 .Ar destination
-using a proxy chain.
-.Nm
-will use the 1st proxy to connect to the 2nd proxy, the 2nd proxy to connect
-to the 3rd and so on. The last proxy in the chain will be used to connect to
-the destination.
+using a proxy at
+.Ar proxy_address
+and
+.Ar port .
 If
-.Ar port*
+.Ar port
 is not specified, the well-known port for the proxy protocol is used (1080
-for SOCKS, 3128 for HTTPS). All proxies must speak the same protocol as
-specified with the
-.Fl X
-option.
+for SOCKS, 3128 for HTTPS).
 .It Fl Z
 DCCP mode.
 .It Fl z
