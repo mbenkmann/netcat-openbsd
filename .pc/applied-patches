@@ -19,3 +19,4 @@
 0019-socks5-reply-with-socks-domain.patch
 0020-proxy-chaining.patch
 0021-permit-multiple-destinations.patch
+0022-pairing-proxy-connection-broker.patch

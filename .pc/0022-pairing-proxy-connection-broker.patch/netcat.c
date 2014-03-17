@@ -1107,11 +1107,7 @@ static void connect_stdin_stdout_to(int request_sock, const char *endpoint2host,
 {
 	int s;
 	int proxy_proto;
-	int is_match = (endpoint2host == MATCH);
-	int is_proxy = (endpoint2host == PROXY) || is_match;
-	int is_zip   = (endpoint2host == ZIP);
-	int pipe_fd;
-	char buf[1];
+	int is_proxy = (endpoint2host == PROXY);
 
 	if (endpoint2host == NULL)
 		return;
@@ -1119,25 +1115,9 @@ static void connect_stdin_stdout_to(int request_sock, const char *endpoint2host,
 	if (is_proxy)
 		proxy_proto = proxy_read_connection_request(request_sock, (char**)&endpoint2host, (char**)&endpoint2port);
 
-	if (is_match || is_zip)
-		/* pair_socket() sends the request_sock file descriptor
-		over a UDS socket to the process managing the pairing. When that process
-		has received a suitable partner from another process (pairing is based
-		on matching endpoint2host and endpoint2port) it will return
-		the partner file descriptor.
-		In the process that should execute the readwrite() 
-		the read end of a pipe is returned in pipe_fd. The
-		process that should terminate after signalling success
-		to its proxy client gets pipe_fd < 0 returned and will
-		have the write end of the pipe open in its process.
-		When the process terminates this write end will automatically
-		close which is the signal to the other process to start with the
-		readwrite(). */
-		s = pair_socket(request_sock, endpoint2host, endpoint2port, &pipe_fd);
-	else
-		s = recursive_connect(endpoint2host, endpoint2port, hints,
-		proxyhost, proxyport, proxyhints, socksv,
-		proxyuser, headers);
+	s = recursive_connect(endpoint2host, endpoint2port, hints,
+	    proxyhost, proxyport, proxyhints, socksv,
+	    proxyuser, headers);
 
 	if (s < 0) {
 		if (is_proxy)
@@ -1158,13 +1138,6 @@ static void connect_stdin_stdout_to(int request_sock, const char *endpoint2host,
 	}
 
 	close(s);
-
-	if (pipe_fd < 0)
-		exit(0); /* closes the write end of the pipe, so other side's read() returns */
-	else
-		read(pipe_fd, buf, 1); /* wait till other process exits */
-
-	close(pipe_fd);
 }
 
 static void shutdown_endpoint2(const char *endpoint2host) {
