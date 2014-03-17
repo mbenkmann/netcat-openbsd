@@ -1,0 +1,558 @@
+--- a/nc.1
++++ b/nc.1
+@@ -55,6 +55,7 @@
+ .Xc Oc
+ .Op Ar destination
+ .Op Ar port
++.Op destination2...
+ .Ek
+ .Sh DESCRIPTION
+ The
+@@ -207,6 +208,9 @@
+ Specifies the source port
+ .Nm
+ should use, subject to privilege restrictions and availability.
++It is an error to use this option in conjunction with the
++.Fl l
++option.
+ .It Fl q Ar seconds
+ after EOF on stdin, wait the specified number of seconds and then quit. If
+ .Ar seconds
+@@ -335,26 +339,61 @@
+ (unless the
+ .Fl n
+ option is given).
+-In general, a destination must be specified,
+-unless the
+-.Fl l
+-option is given
+-(in which case the local host is used).
+ For
+ .Ux Ns -domain
+-sockets, a destination is required and is the socket path to connect to
++sockets,
++.Ar destination
++is the socket path to connect to
+ (or listen on if the
+ .Fl l
+ option is given).
+ .Pp
++In general, a destination must be specified,
++unless the
++.Fl l
++option is given to listen on internet (but not
++.Ux Ns -domain Ns )
++sockets.
++In
++.Fl l
++mode the
++.Ar destination
++may be omitted and
++.Nm
++will bind to the provided
++.Ar port
++on all interfaces.
++.Pp
+ .Ar port
+ can be a single integer or a range of ports.
+-Ranges are in the form nn-mm.
++Ranges are in the form nn-mm. Instead of numbers you may also use
++service names from the
++.Xr services 5
++database, but be careful when using such names with the
++.Fl l
++option because in case of ambiguity a non-number is interpreted as
++.Ar destination
++host name rather than a
++.Ar port
++argument.
++.Pp
+ In general,
+ a destination port must be specified,
+ unless the
+ .Fl U
+ option is given.
++.Pp
++Multiple
++.Ar destination
++and/or
++.Ar port
++arguments may be passed and
++.Nm
++will connect to all of them or process incoming connections on all of them
++in turn or in parallel depending on
++the use of the
++.Fl m
++option.
+ .Sh CLIENT/SERVER MODEL
+ It is quite simple to build a very basic client/server model using
+ .Nm .
+--- a/netcat.c
++++ b/netcat.c
+@@ -96,6 +96,7 @@
+ #include <unistd.h>
+ #include <fcntl.h>
+ #include <limits.h>
++#include <ctype.h>
+ #include <bsd/stdlib.h>
+ #include <bsd/string.h>
+ #include <sys/wait.h>
+@@ -155,10 +156,13 @@
+ int timeout = -1;
+ int family = AF_UNSPEC;
+ char *portlist[PORT_MAX+1];
++char *hostlist[PORT_MAX+1];
++int num_destinations = 0;
++struct pollfd listen_poll[PORT_MAX+1];
+ char *unix_dg_tmp_socket;
+ 
+ void	atelnet(int, unsigned char *, unsigned int);
+-void	build_ports(char **);
++void	build_hosts_and_ports(int argc, char *argv[]);
+ void	help(void);
+ int	local_listen(char *, char *, struct addrinfo);
+ void	readwrite(int);
+@@ -224,7 +228,6 @@
+ {
+ 	int ch, s, ret, socksv;
+ 	char *cptr;
+-	char *host, **uport;
+ 	struct addrinfo hints;
+ 	struct servent *sv;
+ 	socklen_t len;
+@@ -245,8 +248,6 @@
+ 	ret = 1;
+ 	s = 0;
+ 	socksv = 5;
+-	host = NULL;
+-	uport = NULL;
+ 	sv = NULL;
+ 
+ 	while ((ch = getopt(argc, argv,
+@@ -437,28 +438,12 @@
+ 	argv += optind;
+ 
+ 	/* Cruft to make sure options are clean, and used properly. */
+-	if (argv[0] && !argv[1] && family == AF_UNIX) {
+ # if defined(IPPROTO_DCCP) && defined(SOCK_DCCP)
+-		if (dccpflag)
+-			errx(1, "cannot use -Z and -U");
++	if (dccpflag && family == AF_UNIX)
++		errx(1, "cannot use -Z and -U");
+ # endif
+-		host = argv[0];
+-		uport = NULL;
+-	} else if (argv[0] && !argv[1] && lflag) {
+-		if (pflag) {
+-			uport = &pflag;
+-			host = argv[0];
+-		} else {
+-			uport = argv;
+-			host = NULL;
+-		}
+-	} else if (!argv[0] && lflag && pflag) {
+-		uport = &pflag;
+-		host = NULL;
+-	} else if (argv[0] && argv[1]) {
+-		host = argv[0];
+-		uport = &argv[1];
+-	} else
++
++	if (argc == 0)
+ 		usage(1);
+ 
+ 	if (lflag) {
+@@ -467,13 +452,14 @@
+ 		if (zflag)
+ 			errx(1, "cannot use -z and -l");
+ 		if (pflag)
+-			/* This still does not work well because of getopt mess
+-			errx(1, "cannot use -p and -l"); */
+-			uport = &pflag;
++			errx(1, "cannot use -p and -l");
+ 	}
+-	
++
+ 	if (mflag && uflag)
+-            		errx(1, "cannot use -m with -u");
++		errx(1, "cannot use -m with -u");
++
++	/* Construct the portlist[] and hostlist[] arrays. */
++	build_hosts_and_ports(argc, argv);
+ 
+ 	/* Get name of temporary socket for unix datagram client */
+ 	if ((family == AF_UNIX) && uflag && !lflag) {
+@@ -600,30 +586,50 @@
+ 
+ 	if (lflag) {
+ 		int connfd;
++		int i;
+ 		ret = 0;
+ 
+-		if (family == AF_UNIX) {
+-			if (uflag)
+-				s = unix_bind(host);
+-			else
+-				s = unix_listen(host);
+-		} else
+-			s = local_listen(host, *uport, hints);
+-		if (s < 0)
+-			err(1, NULL);
++		for (i = 0; i < num_destinations; ++i) {
++			if (family == AF_UNIX) {
++				if (uflag)
++					s = unix_bind(hostlist[i]);
++				else
++					s = unix_listen(hostlist[i]);
++			} else
++				s = local_listen(hostlist[i], portlist[i], hints);
++			if (s < 0)
++				err(1, NULL);
+ 
+-		char* local;
+-		if (family == AF_INET6)
+-			local = ":::";
+-		else
+-			local = "0.0.0.0";
+-		if (vflag && (family != AF_UNIX))
+-		fprintf(stderr, "Listening on [%s] (family %d, port %s)\n",
+-			host ?: local,
+-			family,
+-			*uport);
++			char* local;
++			if (family == AF_INET6)
++				local = ":::";
++			else
++				local = "0.0.0.0";
++			if (vflag && (family != AF_UNIX))
++			fprintf(stderr, "Listening on [%s] (family %d, port %s)\n",
++				hostlist[i] ?: local,
++				family,
++				portlist[i]);
++
++			// according to poll(2) on Linux poll() may return
++			// spurious readiness info, so set O_NONBLOCK to be safe.
++			if (fcntl(s, F_SETFL, O_NONBLOCK) < 0)
++				err(1, "fcntl");
++			listen_poll[i].fd = s;
++			listen_poll[i].events = POLLIN;
++		}
+ 
+ 		for (;;) {
++		  int pollnum = poll(listen_poll, num_destinations, -1);
++		  if (pollnum < 0 && errno != EINTR)
++			err(1, "poll");
++
++		  if (pollnum <= 0)
++			continue;
++
++		  for (i = 0; i < num_destinations; ++i) {
++		    if ((listen_poll[i].revents & POLLIN) != 0) {
++                    	s = listen_poll[i].fd;
+ 
+ 			/*
+ 			 * For UDP, we will use recvfrom() initially
+@@ -638,8 +644,11 @@
+ 				plen = jflag ? 16384 : 2048;
+ 				rv = recvfrom(s, buf, plen, MSG_PEEK,
+ 				    (struct sockaddr *)&cliaddr, &len);
+-				if (rv < 0)
++				if (rv < 0) {
++					if (errno == EAGAIN || errno == EINTR)
++						continue;
+ 					err(1, "recvfrom");
++				}
+ 
+ 				rv = connect(s, (struct sockaddr *)&cliaddr, len);
+ 				if (rv < 0)
+@@ -648,8 +657,9 @@
+ 				readwrite(s);
+ 			} else {
+ 				len = sizeof(cliaddr);
+-				connfd = accept(s, (struct sockaddr *)&cliaddr,
+-				    &len);
++				connfd = accept(s, (struct sockaddr *)&cliaddr, &len);
++				if (connfd < 0 && (errno == EINTR || errno == EAGAIN))
++					continue;
+ 				if (handle_mflag()) {
+ 					close(connfd);	/* close connfd in the parent process */
+ 					if (vflag)
+@@ -668,7 +678,7 @@
+ 					if (nflag)
+ 						sv = NULL;
+ 					else
+-						sv = getservbyport(ntohs(atoi(*uport)),
++						sv = getservbyport(ntohs(atoi(portlist[i])),
+ 							proto);
+ 
+ 					if (((struct sockaddr *)&cliaddr)->sa_family == AF_INET) {
+@@ -676,7 +686,7 @@
+ 						inet_ntop(((struct sockaddr *)&cliaddr)->sa_family,&(((struct sockaddr_in *)&cliaddr)->sin_addr),dst,INET_ADDRSTRLEN);
+ 						fprintf(stderr, "Connection from [%s] port %s [%s/%s] accepted (family %d, sport %d)\n",
+ 							dst,
+-							*uport,
++							portlist[i],
+ 							proto,
+ 							sv ? sv->s_name : "*",
+ 							((struct sockaddr *)(&cliaddr))->sa_family,
+@@ -687,7 +697,7 @@
+ 						inet_ntop(((struct sockaddr *)&cliaddr)->sa_family,&(((struct sockaddr_in6 *)&cliaddr)->sin6_addr),dst,INET6_ADDRSTRLEN);
+ 						fprintf(stderr, "Connection from [%s] port %s [%s/%s] accepted (family %d, sport %d)\n",
+ 							dst,
+-							*uport,
++							portlist[i],
+ 							proto,
+ 							sv ? sv->s_name : "*",
+ 							((struct sockaddr *)&cliaddr)->sa_family,
+@@ -695,7 +705,7 @@
+ 					}
+ 					else {
+ 						fprintf(stderr, "Connection from unknown port %s [%s/%s] accepted (family %d, sport %d)\n",
+-							*uport,
++							portlist[i],
+ 							proto,
+ 							sv ? sv->s_name : "*",
+ 							((struct sockaddr *)(&cliaddr))->sa_family,
+@@ -721,18 +731,24 @@
+ 				if (connect(s, NULL, 0) < 0)
+ 					err(1, "connect");
+ 			}
+-			break;
++			exit(0);
++		    }
++		  }
+ 		}
+ 	} else if (family == AF_UNIX) {
++		int i = -1;
+ 		for (;;) {
++			if (++i >= num_destinations)
++				i = 0;
++
+ 			if (handle_mflag()) {
+ 				if (vflag)
+-					fprintf(stderr, "Forked child process to handle connection to %s.\n", host);
++					fprintf(stderr, "Forked child process to handle connection to %s.\n", hostlist[i]);
+ 				continue;
+ 			}
+ 			ret = 0;
+ 
+-			if ((s = unix_connect(host)) > 0 && !zflag) {
++			if ((s = unix_connect(hostlist[i])) > 0 && !zflag) {
+ 				connect_stdin_stdout_to(s, endpoint2host, endpoint2port, hints, proxyhost, proxyport, proxyhints, socksv, Pflag, headers);
+ 				readwrite(s);
+ 				shutdown_endpoint2(endpoint2host);
+@@ -740,24 +756,21 @@
+ 			} else
+ 				ret = 1;
+ 		
+-			if (!kflag || ret)
++			if ((!kflag && i+1 == num_destinations) || ret)
+ 				break;
+ 
+ 			if (vflag)
+-				fprintf(stderr, "Connection closed, re-connecting.\n");
++				fprintf(stderr, "Connection closed, opening next connection.\n");
+ 		}	
+ 		if (uflag)
+ 			unlink(unix_dg_tmp_socket);
+ 		exit(ret);
+ 	} else {
+-		int i = 0;
+-
+-		/* Construct the portlist[] array. */
+-		build_ports(uport);
++		int i;
+ 
+ 		/* Cycle through portlist, connecting to each port. */
+-		for (i = 0; (portlist[i] != NULL) || ((i > 0) && kflag); i++) {
+-			if (portlist[i] == NULL)
++		for (i = 0; kflag || i < num_destinations; i++) {
++			if (i >= num_destinations)
+ 				i = 0;
+ 			
+ 			if (s)
+@@ -765,11 +778,11 @@
+ 
+ 			if (handle_mflag()) {
+ 				if (vflag)
+-					fprintf(stderr, "Forked child process to handle connection to %s:%s.\n", host, portlist[i]);
++					fprintf(stderr, "Forked child process to handle connection to %s:%s.\n", hostlist[i], portlist[i]);
+ 				continue;
+ 			}
+ 			
+-			s = recursive_connect(host, portlist[i], hints,
++			s = recursive_connect(hostlist[i], portlist[i], hints,
+ 			    proxyhost, proxyport, proxyhints, socksv,
+ 			    Pflag, headers);
+ 
+@@ -798,7 +811,7 @@
+ 
+ 				fprintf(stderr,
+ 				    "Connection to %s port %s [%s/%s] "
+-				    "succeeded!\n", host, portlist[i],
++				    "succeeded!\n", hostlist[i], portlist[i],
+ 				    proto,
+ 				    sv ? sv->s_name : "*");
+ 			}
+@@ -1332,29 +1345,23 @@
+ 	}
+ }
+ 
+-/*
+- * build_ports()
+- * Build an array of ports in portlist[], listing each port
+- * that we should try to connect to.
+- */
+ void
+-build_ports(char **p)
++expand_portrange(char* host, char* p)
+ {
+-        struct servent *sv;
++	struct servent *sv;
+ 	const char *errstr;
+ 	char *n;
+ 	int hi, lo, cp;
+-	int x = 0;
+-	int i;
+ 
+ 	char *proto = proto_name(uflag, dccpflag);
+-	sv = getservbyname(*p, proto);
++	sv = getservbyname(p, proto);
+         if (sv) {
+-                portlist[0] = calloc(1, PORT_MAX_LEN);
+-                if (portlist[0] == NULL)
+-                        err(1, NULL);
+-                snprintf(portlist[0], PORT_MAX_LEN, "%d", ntohs(sv->s_port));
+-        } else if ((n = strchr(*p, '-')) != NULL) {
++                portlist[num_destinations] = calloc(1, PORT_MAX_LEN);
++                if (portlist[num_destinations] == NULL)
++			err(1, "calloc");
++                snprintf(portlist[num_destinations], PORT_MAX_LEN, "%d", ntohs(sv->s_port));
++                hostlist[num_destinations++] = host;
++        } else if ((n = strchr(p, '-')) != NULL) {
+ 		*n = '\0';
+ 		n++;
+ 
+@@ -1362,9 +1369,9 @@
+ 		hi = strtonum(n, 1, PORT_MAX, &errstr);
+ 		if (errstr)
+ 			errx(1, "port number %s: %s", errstr, n);
+-		lo = strtonum(*p, 1, PORT_MAX, &errstr);
++		lo = strtonum(p, 1, PORT_MAX, &errstr);
+ 		if (errstr)
+-			errx(1, "port number %s: %s", errstr, *p);
++			errx(1, "port number %s: %s", errstr, p);
+ 
+ 		if (lo > hi) {
+ 			cp = hi;
+@@ -1374,34 +1381,78 @@
+ 
+ 		/* Load ports sequentially. */
+ 		for (cp = lo; cp <= hi; cp++) {
+-			portlist[x] = calloc(1, PORT_MAX_LEN);
+-			if (portlist[x] == NULL)
+-				err(1, NULL);
+-			snprintf(portlist[x], PORT_MAX_LEN, "%d", cp);
+-			x++;
++			portlist[num_destinations] = calloc(1, PORT_MAX_LEN);
++			if (portlist[num_destinations] == NULL)
++				err(1, "calloc");
++			snprintf(portlist[num_destinations], PORT_MAX_LEN, "%d", cp);
++			hostlist[num_destinations++] = host;
+ 		}
++	} else {
++		hi = strtonum(p, 1, PORT_MAX, &errstr);
++		if (errstr)
++			errx(1, "port number %s: %s", errstr, p);
++		portlist[num_destinations] = p;
++		hostlist[num_destinations++] = host;
++	}
++}
+ 
+-		/* Randomly swap ports. */
+-		if (rflag) {
+-			int y;
+-			char *c;
+-
+-			for (x = 0; x <= (hi - lo); x++) {
+-				y = (arc4random() & 0xFFFF) % (hi - lo);
+-				c = portlist[x];
+-				portlist[x] = portlist[y];
+-				portlist[y] = c;
++/*
++ * build_ports_and_hosts()
++ * Builds arrays of hosts and corresponding ports in hostlist[] and portlist[],
++ * listing each port that we should connect to or listen on.
++ */
++void
++build_hosts_and_ports(int argc, char *argv[])
++{
++	int i;
++
++	memset(portlist, 0, sizeof(portlist));
++	memset(hostlist, 0, sizeof(hostlist));
++
++	if (argc > PORT_MAX)
++		errx(1, "too many arguments");
++
++	if (argc == 0)
++		errx(1, "missing destination");
++
++	if (family == AF_UNIX) {
++		memcpy(hostlist, argv, argc * sizeof(char*));
++		num_destinations = argc;
++		return;
++	}
++
++	if (lflag) {
++		for (i = 0; i < argc; ++i) {
++			if (i == argc-1 || (isdigit(argv[i][0]) && (strchr(argv[i],'.') == NULL))) {
++				expand_portrange(NULL, argv[i]);
++			} else {
++				char* host = argv[i++];
++				expand_portrange(host, argv[i]);
+ 			}
+ 		}
+ 	} else {
+-		hi = strtonum(*p, 1, PORT_MAX, &errstr);
+-		if (errstr)
+-			errx(1, "port number %s: %s", errstr, *p);
+-		for (i=0;p[i];i++) {
+-			portlist[i] = strdup(p[i]);
++		if ((argc & 1) != 0)
++			errx(1, "missing port for destination %s", argv[argc-1]);
++
++		for (i = 0; i < argc; i+=2)
++			expand_portrange(argv[i], argv[i+1]);
++	}
++
++	/* Randomly swap ports. */
++	if (rflag) {
++		int y;
++		int x;
++		char *c;
++
++		for (x = 0; x < num_destinations; x++) {
++			y = arc4random_uniform(num_destinations);
++			c = portlist[x];
++			portlist[x] = portlist[y];
++			portlist[y] = c;
++			c = hostlist[x];
++			hostlist[x] = hostlist[y];
++			hostlist[y] = c;
+ 		}
+-		if (portlist[0] == NULL)
+-			err(1, NULL);
+ 	}
+ }
+ 
+@@ -1579,7 +1630,8 @@
+ 	    "usage: nc [-46bCDdhjklnrStUuvZz] [-I length] [-2 endpoint2] [-i interval]\n"
+ 	    "\t  [-H header:value] [-m maxfork] [-O length] [-P proxy_username] [-p source_port]\n"
+ 	    "\t  [-q seconds] [-s source] [-T toskeyword] [-V rtable] [-w timeout]\n"
+-	    "\t  [-X proxy_protocol] [-x proxy_address[:port]] [destination] [port]\n");
++	    "\t  [-X proxy_protocol] [-x proxy_address[:port]] [destination] [port]\n"
++	    "\t  [destination2...]\n");
+ 	if (ret)
+ 		exit(1);
+ }
