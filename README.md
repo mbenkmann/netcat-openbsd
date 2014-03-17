@@ -21,6 +21,7 @@ This branch incorporates the following additional features:
 * -2 proxy makes nc act as a CONNECT/SOCKSv4/SOCKSv4a/SOCKS5 proxy.
 * -2 host:port uses a connection to host:port as 2nd endpoint instead of stdin+stdout. 
 * -x proxy1:port1+...+proxyN:portN establishes a proxy chain, using proxy1 to connect to proxy2,... and proxyN to connect to destination.
+* permits multiple destination and port arguments to listen on/connect to multiple destinations
 
 This branch has "quilt push -a" applied to it, so all the sources are in fully patched state with both the Debian patches
 and the additional features from the list above.
