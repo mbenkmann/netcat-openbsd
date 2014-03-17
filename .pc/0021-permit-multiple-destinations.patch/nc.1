@@ -55,7 +55,6 @@
 .Xc Oc
 .Op Ar destination
 .Op Ar port
-.Op destination2...
 .Ek
 .Sh DESCRIPTION
 The
@@ -208,9 +207,6 @@ Proxy authentication is only supported for HTTP CONNECT proxies at present.
 Specifies the source port
 .Nm
 should use, subject to privilege restrictions and availability.
-It is an error to use this option in conjunction with the
-.Fl l
-option.
 .It Fl q Ar seconds
 after EOF on stdin, wait the specified number of seconds and then quit. If
 .Ar seconds
@@ -339,61 +335,26 @@ can be a numerical IP address or a symbolic hostname
 (unless the
 .Fl n
 option is given).
+In general, a destination must be specified,
+unless the
+.Fl l
+option is given
+(in which case the local host is used).
 For
 .Ux Ns -domain
-sockets,
-.Ar destination
-is the socket path to connect to
+sockets, a destination is required and is the socket path to connect to
 (or listen on if the
 .Fl l
 option is given).
 .Pp
-In general, a destination must be specified,
-unless the
-.Fl l
-option is given to listen on internet (but not
-.Ux Ns -domain Ns )
-sockets.
-In
-.Fl l
-mode the
-.Ar destination
-may be omitted and
-.Nm
-will bind to the provided
-.Ar port
-on all interfaces.
-.Pp
 .Ar port
 can be a single integer or a range of ports.
-Ranges are in the form nn-mm. Instead of numbers you may also use
-service names from the
-.Xr services 5
-database, but be careful when using such names with the
-.Fl l
-option because in case of ambiguity a non-number is interpreted as
-.Ar destination
-host name rather than a
-.Ar port
-argument.
-.Pp
+Ranges are in the form nn-mm.
 In general,
 a destination port must be specified,
 unless the
 .Fl U
 option is given.
-.Pp
-Multiple
-.Ar destination
-and/or
-.Ar port
-arguments may be passed and
-.Nm
-will connect to all of them or process incoming connections on all of them
-in turn or in parallel depending on
-the use of the
-.Fl m
-option.
 .Sh CLIENT/SERVER MODEL
 It is quite simple to build a very basic client/server model using
 .Nm .
