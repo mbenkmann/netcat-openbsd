@@ -1,6 +1,311 @@
 --- a/netcat.c
 +++ b/netcat.c
-@@ -1107,7 +1107,11 @@
+@@ -123,6 +123,8 @@
+ #define LISTEN_BACKLOG 5
+ 
+ char *PROXY = "proxy";
++char *ZIP = "zip";
++char *MATCH = "match";
+ 
+ /* Command Line Options */
+ int	bflag;					/* Allow Broadcast */
+@@ -160,6 +162,7 @@
+ int num_destinations = 0;
+ struct pollfd listen_poll[PORT_MAX+1];
+ char *unix_dg_tmp_socket;
++int broker_socket;
+ 
+ void	atelnet(int, unsigned char *, unsigned int);
+ void	build_hosts_and_ports(int argc, char *argv[]);
+@@ -183,7 +186,8 @@
+ 
+ static int connect_with_timeout(int fd, const struct sockaddr *sa,
+         socklen_t salen, int ctimeout);
+-static void connect_stdin_stdout_to(int request_sock, const char *endpoint2host, const char *endpoint2port,
++static void connection_broker();
++static void connect_stdin_stdout_to(int request_sock, int destination_idx, const char *endpoint2host, const char *endpoint2port,
+ 	struct addrinfo hints, const char *proxyhost[], const char *proxyport[],
+ 	struct addrinfo proxyhints, int socksv, const char *proxyuser, char *headers);
+ static void shutdown_endpoint2(const char *endpoint2host);
+@@ -574,11 +578,26 @@
+ 		/* Make it possible to use == and != instead of strcmp() */
+ 		if (strcmp(endpoint2, PROXY) == 0)
+ 			endpoint2 = PROXY;
++                else if (strcmp(endpoint2, ZIP) == 0) {
++			if (mflag < 2)
++				errx(1, "-2 zip requires -m 2 or higher");
++			if (num_destinations < 2)
++				errx(1, "-2 zip requires at least 2 destinations");
++			endpoint2 = ZIP;
++			connection_broker();
++		} else if (strcmp(endpoint2, MATCH) == 0) {
++			if (mflag < 2)
++				errx(1, "-2 match requires -m 2 or higher");
++			if (num_destinations < 2)
++				errx(1, "-2 match requires at least 2 destinations");
++			endpoint2 = MATCH;
++			connection_broker();
++		}
+ 
+ 		endpoint2port = strrchr(endpoint2, ':');
+ 		endpoint2host = endpoint2;
+ 		if (endpoint2port == NULL) {
+-			if (endpoint2 != PROXY)
++			if (endpoint2 != PROXY && endpoint2 != ZIP && endpoint2 != MATCH)
+ 				errx(1, "port missing in -2 address: %s", endpoint2);
+ 		} else
+ 			*endpoint2port++ = 0;
+@@ -714,7 +733,7 @@
+ 				}
+                                 if(!kflag)
+                                         close(s);
+-				connect_stdin_stdout_to(connfd, endpoint2host, endpoint2port, hints, proxyhost, proxyport, proxyhints, socksv, Pflag, headers);
++				connect_stdin_stdout_to(connfd, i, endpoint2host, endpoint2port, hints, proxyhost, proxyport, proxyhints, socksv, Pflag, headers);
+ 				readwrite(connfd);
+ 				shutdown_endpoint2(endpoint2host);
+ 				close(connfd);
+@@ -749,7 +768,7 @@
+ 			ret = 0;
+ 
+ 			if ((s = unix_connect(hostlist[i])) > 0 && !zflag) {
+-				connect_stdin_stdout_to(s, endpoint2host, endpoint2port, hints, proxyhost, proxyport, proxyhints, socksv, Pflag, headers);
++				connect_stdin_stdout_to(s, i, endpoint2host, endpoint2port, hints, proxyhost, proxyport, proxyhints, socksv, Pflag, headers);
+ 				readwrite(s);
+ 				shutdown_endpoint2(endpoint2host);
+ 				close(s);
+@@ -816,7 +835,7 @@
+ 				    sv ? sv->s_name : "*");
+ 			}
+ 			if (!zflag)
+-				connect_stdin_stdout_to(s, endpoint2host, endpoint2port, hints, proxyhost, proxyport, proxyhints, socksv, Pflag, headers);
++				connect_stdin_stdout_to(s, i, endpoint2host, endpoint2port, hints, proxyhost, proxyport, proxyhints, socksv, Pflag, headers);
+ 				readwrite(s);
+ 				shutdown_endpoint2(endpoint2host);
+ 		}
+@@ -1101,13 +1120,233 @@
+ 	return (err != 0)? CONNECTION_FAILED : CONNECTION_SUCCESS;
+ }
+ 
+-static void connect_stdin_stdout_to(int request_sock, const char *endpoint2host, const char *endpoint2port,
++struct broker_dat {
++	int pair_idx;
++	int connection_socket;
++	int control_socket;
++	char pair_id[256];
++};
++
++/* for -2 zip and -2 match */
++static void connection_broker()
++{
++	int sv[2];
++	pid_t pid;
++	struct msghdr msg;
++	struct cmsghdr *cmsg;
++	struct broker_dat *bdat1;
++	struct broker_dat *bdat2;
++	struct broker_dat *bdatlist;
++	ssize_t sz;
++	char buf1[2048];
++	char buf2[2048];
++	char YOU_DO_THE_READWRITE = 1;
++	char YOU_EXIT = 0;
++	struct iovec iov;
++
++	if ((bdatlist = calloc(mflag, sizeof(struct broker_dat))) == NULL)
++		err(1, "could not allocate broker data list");
++
++	if (socketpair(AF_UNIX, SOCK_STREAM, 0, sv) < 0)
++		err(1, "could not create connection broker sockets");
++
++	pid = fork();
++	if (pid < 0)
++		err(1, "could not fork connection broker");
++
++	if (pid > 0) { /* parent */
++		close(sv[0]);
++		broker_socket = sv[1];
++		shutdown(broker_socket, SHUT_RD);
++		return;
++	}
++
++	/* child = the broker process */
++	close(sv[1]);
++	broker_socket = sv[0];
++	shutdown(broker_socket, SHUT_WR);
++
++	for(;;) {
++		memset(&msg, 0, sizeof(msg));
++		msg.msg_control = buf1;
++		msg.msg_controllen = sizeof(buf1);
++		iov.iov_base = buf2;
++		iov.iov_len = sizeof(buf2);
++		msg.msg_iov = &iov;
++		msg.msg_iovlen = 1;
++		sz = recvmsg(broker_socket, &msg, 0);
++		if (sz < 0) {
++			if (errno == EINTR)
++				continue;
++			err(1, "error on connection broker socket");
++		}
++
++		if (sz == 0)
++			break;
++
++		cmsg = CMSG_FIRSTHDR(&msg);
++		if (cmsg == NULL || cmsg->cmsg_level != SOL_SOCKET || cmsg->cmsg_type != SCM_RIGHTS || cmsg->cmsg_len != CMSG_LEN(2*sizeof(int)))
++			errx(1, "internal error (cmsg)");
++
++		bdat1 = (struct broker_dat*)buf2;
++		bdat1->connection_socket = ((int*)CMSG_DATA(cmsg))[0];
++		bdat1->control_socket = ((int*)CMSG_DATA(cmsg))[1];
++
++		for (bdat2 = bdatlist; bdat2->pair_id[0] != 0; ++bdat2) {
++			if (strcmp(bdat1->pair_id, bdat2->pair_id) == 0 &&
++			(bdat1->pair_idx ^ bdat2->pair_idx) == 1)
++				break;
++		}
++
++		if (bdat2->pair_id[0] == 0) { /* end of list reached without match */
++			if (vflag)
++				fprintf(stderr, "Waiting for peer for connection pair \"%s\"\n", bdat1->pair_id);
++			memcpy(bdat2, bdat1, sizeof(struct broker_dat));
++			continue;
++		}
++
++		/* we have a match => unqueue it and marry the pair */
++		if (vflag)
++			fprintf(stderr, "Connection pair \"%s\" established\n", bdat1->pair_id);
++
++		if (pipe(sv) < 0)
++			err(1, "pipe");
++
++		memset(&msg, 0, sizeof(msg));
++		msg.msg_control = buf1;
++		msg.msg_controllen = sizeof(buf1); /* cmsg(2) says this is not redundant */
++		iov.iov_base = &YOU_DO_THE_READWRITE;
++		iov.iov_len = sizeof(YOU_DO_THE_READWRITE);
++		msg.msg_iov = &iov;
++		msg.msg_iovlen = 1;
++		cmsg = CMSG_FIRSTHDR(&msg);
++		cmsg->cmsg_level = SOL_SOCKET;
++		cmsg->cmsg_type = SCM_RIGHTS;
++		cmsg->cmsg_len = CMSG_LEN(2*sizeof(int));
++		((int*)CMSG_DATA(cmsg))[0] = bdat1->connection_socket;
++		((int*)CMSG_DATA(cmsg))[1] = sv[0]; /* read end of the pipe */
++		msg.msg_controllen = CMSG_SPACE(2*sizeof(int));
++		if (sendmsg(bdat2->control_socket, &msg, 0) < 0)
++			err(1, "sendmsg");
++
++		iov.iov_base = &YOU_EXIT;
++		iov.iov_len = sizeof(YOU_EXIT);
++		((int*)CMSG_DATA(cmsg))[0] = bdat2->connection_socket;
++		((int*)CMSG_DATA(cmsg))[1] = sv[1]; /* write end of the pipe */
++		if (sendmsg(bdat1->control_socket, &msg, 0) < 0)
++			err(1, "sendmsg");
++
++		close(bdat1->control_socket);
++		close(bdat2->control_socket);
++		close(bdat1->connection_socket);
++		close(bdat2->connection_socket);
++		close(sv[0]);
++		close(sv[1]);
++
++		/* find last entry in bdatlist */
++		for (bdat1 = bdat2; bdat1->pair_id[0] != 0; ++bdat1);
++		--bdat1;
++		/* move last entry to place of bdat2 and 0 out the last entry */
++		memmove(bdat2, bdat1, sizeof(struct broker_dat));
++		memset(bdat1, 0, sizeof(struct broker_dat));
++	}
++
++	exit(0); /* connection broker process does not return */
++}
++
++static int pair_socket(int request_sock, int destination_idx, const char* endpoint2host, const char* endpoint2port, int *pipe_fd)
++{
++	int sv[2];
++	size_t len = 1; /* 1 for the 0 terminator */
++	struct msghdr msg;
++	struct cmsghdr *cmsg;
++	struct broker_dat bdat;
++	char buf[32];
++	struct iovec iov;
++	char what_to_do;
++	ssize_t sz;
++
++	if (endpoint2host != NULL)
++		len += strlen(endpoint2host);
++	if (endpoint2port != NULL)
++		len += 1+strlen(endpoint2port); /* +1 for ":" */
++
++	if (len > sizeof(bdat.pair_id))
++		errx(1, "pair connection id longer than %d: \"%s:%s\"", (int)sizeof(bdat.pair_id), endpoint2host, endpoint2port);
++
++	bdat.pair_id[0] = 0;
++	if (endpoint2host != NULL)
++		strcat(bdat.pair_id, endpoint2host);
++	if (endpoint2port != NULL) {
++		strcat(bdat.pair_id, ":");
++		strcat(bdat.pair_id, endpoint2port);
++	}
++
++	/* create sockets for communicating with broker */
++	if (socketpair(AF_UNIX, SOCK_STREAM, 0, sv) < 0)
++		err(1, "could not create sockets for communicating with connection broker");
++
++	bdat.pair_idx = destination_idx;
++	bdat.connection_socket = request_sock;
++	bdat.control_socket = sv[1];
++
++	memset(&msg, 0, sizeof(msg));
++	msg.msg_control = buf;
++	msg.msg_controllen = sizeof(buf); /* cmsg(2) says this is not redundant */
++	iov.iov_base = &bdat;
++	iov.iov_len = sizeof(struct broker_dat);
++	msg.msg_iov = &iov;
++	msg.msg_iovlen = 1;
++	cmsg = CMSG_FIRSTHDR(&msg);
++	cmsg->cmsg_level = SOL_SOCKET;
++	cmsg->cmsg_type = SCM_RIGHTS;
++	cmsg->cmsg_len = CMSG_LEN(2*sizeof(int));
++	((int*)CMSG_DATA(cmsg))[0] = bdat.connection_socket;
++	((int*)CMSG_DATA(cmsg))[1] = bdat.control_socket;
++	msg.msg_controllen = CMSG_SPACE(2*sizeof(int));
++	if (sendmsg(broker_socket, &msg, 0) < 0)
++		err(1, "sendmsg");
++
++	close(sv[1]);
++
++	memset(&msg, 0, sizeof(msg));
++	msg.msg_control = buf;
++	msg.msg_controllen = sizeof(buf);
++	iov.iov_base = &what_to_do;
++	iov.iov_len = sizeof(what_to_do);
++	msg.msg_iov = &iov;
++	msg.msg_iovlen = 1;
++	sz = recvmsg(sv[0], &msg, 0);
++	if (sz <= 0)
++		err(1, "error on connection broker socket");
++
++	close(sv[0]);
++
++	cmsg = CMSG_FIRSTHDR(&msg);
++	if (cmsg == NULL || cmsg->cmsg_level != SOL_SOCKET || cmsg->cmsg_type != SCM_RIGHTS || cmsg->cmsg_len != CMSG_LEN(2*sizeof(int)))
++		errx(1, "internal error (cmsg)");
++
++	if (what_to_do == 0) {
++		*pipe_fd = -1;
++		/* leave file descriptor ((int*)CMSG_DATA(cmsg))[1] open! */
++		return ((int*)CMSG_DATA(cmsg))[0];
++	} else {
++		*pipe_fd = ((int*)CMSG_DATA(cmsg))[1];
++		return ((int*)CMSG_DATA(cmsg))[0];
++	}
++}
++
++static void connect_stdin_stdout_to(int request_sock, int destination_idx, const char *endpoint2host, const char *endpoint2port,
+ 	struct addrinfo hints, const char *proxyhost[], const char *proxyport[],
+ 	struct addrinfo proxyhints, int socksv, const char *proxyuser, char *headers)
  {
  	int s;
  	int proxy_proto;
@@ -13,7 +318,7 @@
  
  	if (endpoint2host == NULL)
  		return;
-@@ -1115,9 +1119,25 @@
+@@ -1115,9 +1354,27 @@
  	if (is_proxy)
  		proxy_proto = proxy_read_connection_request(request_sock, (char**)&endpoint2host, (char**)&endpoint2port);
  
@@ -22,11 +327,13 @@
 -	    proxyuser, headers);
 +	if (is_match || is_zip)
 +		/* pair_socket() sends the request_sock file descriptor
-+		over a UDS socket to the process managing the pairing. When that process
-+		has received a suitable partner from another process (pairing is based
-+		on matching endpoint2host and endpoint2port) it will return
-+		the partner file descriptor.
-+		In the process that should execute the readwrite() 
++		over a UDS socket to the connection_broker() process. When that process
++		has received a suitable partner from another process
++		it will return the partner file descriptor.
++		2 connections can be paired if they have the same
++		endpoint2host+endpoint2port and if their destination_idx
++		values differ in bit 0 but are otherwise identical.
++		In the process that should execute the readwrite()
 +		the read end of a pipe is returned in pipe_fd. The
 +		process that should terminate after signalling success
 +		to its proxy client gets pipe_fd < 0 returned and will
@@ -34,7 +341,7 @@
 +		When the process terminates this write end will automatically
 +		close which is the signal to the other process to start with the
 +		readwrite(). */
-+		s = pair_socket(request_sock, endpoint2host, endpoint2port, &pipe_fd);
++		s = pair_socket(request_sock, destination_idx, endpoint2host, endpoint2port, &pipe_fd);
 +	else
 +		s = recursive_connect(endpoint2host, endpoint2port, hints,
 +		proxyhost, proxyport, proxyhints, socksv,
@@ -42,7 +349,7 @@
  
  	if (s < 0) {
  		if (is_proxy)
-@@ -1138,6 +1158,13 @@
+@@ -1138,6 +1395,13 @@
  	}
  
  	close(s);
