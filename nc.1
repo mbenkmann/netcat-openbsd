@@ -100,19 +100,7 @@ When a primary connection to/from
 .Ar destination
 has been established, connect to
 .Ar endpoint2
-instead of using stdin+stdout as 2nd endpoint.
-.Ar endpoint2
-may be either a fixed
-.Dq host:port
-address or the word
-.Dq proxy
-which tells
-.Nm
-to read a connection request from the primary connection and
-to use the destination in that request as 2nd endpoint.
-The connection request may use HTTP CONNECT, SOCKSv4, SOCKSv4a or SOCKSv5.
-The type of request is auto-detected.
-If
+instead of using stdin+stdout as 2nd endpoint. If
 .Fl x
 is used to set a proxy, that same proxy will be used for
 connecting to
@@ -121,7 +109,22 @@ as well.
 .Fl 2
 may not be combined with the
 .Fl u
-option.
+option. For details on the possible
+values for
+.Ar endpoint2
+see below:
+.It Fl 2 Ar host Ns : Ns Ar port
+Whenever a primary connection has been established, connect to
+.Ar host Ns : Ns Ar port
+as 2nd endpoint.
+.It Fl 2 Dq proxy
+Tells
+.Nm
+to read a connection request from the primary connection and
+to use the destination in that request as 2nd endpoint.
+The connection request may use HTTP CONNECT, SOCKSv4, SOCKSv4a or SOCKSv5.
+The type of request is auto-detected.
+
 SECURITY WARNING!
 .Nm
 will proxy to any destination it can reach, including localhost and
@@ -134,6 +137,32 @@ and/or a per-application or per-user firewall restricting which
 destinations the
 .Nm
 process can connect to is usually a bad idea.
+.It Fl 2 Dq zip
+All
+.Ar destinations
+are grouped into pairs in the order they appear on the command line.
+Whenever at least one primary connection has been established from/to both
+destinations of a pair,
+.Nm
+will take one pending primary connection from/to the 1st destination and
+connect it with one pending primary connection from/to the 2nd destination
+of the pair.
+Requires at least two
+.Ar destinations
+and
+.Fl m
+2 or higher.
+.It Fl 2 Dq match
+Similar to
+.Fl 2
+.Dq zip
+but instead of combining any primary connection from/to
+the 1st destination of a pair with any primary connection from/to the 2nd
+destination of a pair,
+.Nm
+will read connection requests (CONNECT, SOCKSv4, SOCKSv4a or SOCKS5) from
+all primary connections and will only pair those that specify the same
+target.
 .It Fl 4
 Forces
 .Nm

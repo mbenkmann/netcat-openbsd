@@ -731,8 +731,12 @@ main(int argc, char *argv[])
 							ntohs(((struct sockaddr_in *)&cliaddr)->sin_port));
 					}
 				}
-                                if(!kflag)
-                                        close(s);
+                                if(!kflag) {
+                                    /* close listening sockets (in child process, if -m 1+ ) */
+                                    int j;
+                                    for (j = 0; j < num_destinations; ++j)
+                                        close(listen_poll[j].fd);
+                                }
 				connect_stdin_stdout_to(connfd, i, endpoint2host, endpoint2port, hints, proxyhost, proxyport, proxyhints, socksv, Pflag, headers);
 				readwrite(connfd);
 				shutdown_endpoint2(endpoint2host);
@@ -1354,7 +1358,7 @@ static void connect_stdin_stdout_to(int request_sock, int destination_idx, const
 	if (is_proxy)
 		proxy_proto = proxy_read_connection_request(request_sock, (char**)&endpoint2host, (char**)&endpoint2port);
 
-	if (is_match || is_zip)
+	if (is_match || is_zip) {
 		/* pair_socket() sends the request_sock file descriptor
 		over a UDS socket to the connection_broker() process. When that process
 		has received a suitable partner from another process
@@ -1371,7 +1375,8 @@ static void connect_stdin_stdout_to(int request_sock, int destination_idx, const
 		close which is the signal to the other process to start with the
 		readwrite(). */
 		s = pair_socket(request_sock, destination_idx, endpoint2host, endpoint2port, &pipe_fd);
-	else
+		close(broker_socket);
+	} else
 		s = recursive_connect(endpoint2host, endpoint2port, hints,
 		proxyhost, proxyport, proxyhints, socksv,
 		proxyuser, headers);
