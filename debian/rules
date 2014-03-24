@@ -22,6 +22,10 @@ endif
 override_dh_auto_build:
 	$(MAKE) CFLAGS='$(DEB_CFLAGS) -DDEBIAN_VERSION=\"$(DEB_VER)\"' LDFLAGS="$(DEB_LDFLAGS)" $(CROSS)
 override_dh_auto_install:
-	mv nc nc.openbsd
-	mv nc.1 nc_openbsd.1
+	cp -a nc nc.openbsd
+	cp -a nc.1 nc_openbsd.1
 	dh_auto_install
+override_dh_auto_clean:
+	rm -f README.md nc_openbsd.1 nc.openbsd
+	dh_auto_clean
+	
