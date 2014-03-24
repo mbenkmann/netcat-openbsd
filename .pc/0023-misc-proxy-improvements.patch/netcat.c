@@ -113,7 +113,6 @@
 #define PROXY_CHAIN_MAX 32
 #define SOCKS_PORT	"1080"
 #define HTTP_PROXY_PORT	"3128"
-#define PROXY_PROTOCOL_DEFAULT 5
 
 #define CONNECTION_SUCCESS 0
 #define CONNECTION_FAILED 1
@@ -138,7 +137,6 @@ int	lflag;					/* Bind to local port */
 int	mflag;					/* max. child processes to fork */
 int	nflag;					/* Don't do name look up */
 char   *Pflag;					/* Proxy username */
-char   *Pflag2;					/* Proxy username (-2 target) */
 char   *pflag;					/* Localport flag */
 int     qflag = 0;                              /* Quit after ... */
 int	qtime = 0;				/* ... this many seconds */
@@ -148,6 +146,7 @@ int	tflag;					/* Telnet Emulation */
 int	uflag;					/* UDP - Default to TCP */
 int	dccpflag;				/* DCCP - Default to TCP */
 int	vflag;					/* Verbosity */
+int	xflag;					/* Socks proxy */
 int	zflag;					/* Port Scan Flag */
 int	Dflag;					/* sodebug */
 int	Iflag;					/* TCP receive buffer size */
@@ -193,7 +192,6 @@ static void connect_stdin_stdout_to(int request_sock, int destination_idx, const
 	struct addrinfo proxyhints, int socksv, const char *proxyuser, char *headers);
 static void shutdown_endpoint2(const char *endpoint2host);
 static void quit();
-static void parse_proxy_chain(char* proxy, int socksv, const char* proxyhost[], const char* proxyport[]);
 
 int	child_count = 0;
 static	int handle_mflag(void) {
@@ -232,7 +230,7 @@ static	int handle_mflag(void) {
 int
 main(int argc, char *argv[])
 {
-	int ch, s, ret, socksv, socksv2;
+	int ch, s, ret, socksv;
 	char *cptr;
 	struct addrinfo hints;
 	struct servent *sv;
@@ -242,22 +240,18 @@ main(int argc, char *argv[])
 		struct sockaddr_un forunix;
 	} cliaddr;
 	char *proxy = NULL;
-	char *proxy2 = NULL;
 	const char *errstr;
 	const char *proxyhost[PROXY_CHAIN_MAX+1] = {NULL};
 	const char *proxyport[PROXY_CHAIN_MAX+1] = {NULL};
-	const char *proxyhost2[PROXY_CHAIN_MAX+1] = {NULL};
-	const char *proxyport2[PROXY_CHAIN_MAX+1] = {NULL};
 	char *endpoint2 = NULL;
 	char *endpoint2host = NULL, *endpoint2port = NULL;
 	char* headers = NULL;
-	char* headers2 = NULL;
 	struct addrinfo proxyhints;
 	char unix_dg_tmp_socket_buf[UNIX_DG_TMP_SOCKET_SIZE];
 
 	ret = 1;
 	s = 0;
-	socksv = socksv2 = PROXY_PROTOCOL_DEFAULT;
+	socksv = 5;
 	sv = NULL;
 
 	while ((ch = getopt(argc, argv,
@@ -266,14 +260,6 @@ main(int argc, char *argv[])
 		case '2':
 			if ((endpoint2 = strdup(optarg)) == NULL)
 				err(1, NULL);
-			proxy2 = proxy;
-			headers2 = headers;
-			socksv2 = socksv;
-			Pflag2 = Pflag;
-			proxy = NULL;
-			headers = NULL;
-			socksv = PROXY_PROTOCOL_DEFAULT;
-			Pflag = NULL;
 			break;
 		case '4':
 			family = AF_INET;
@@ -402,6 +388,7 @@ main(int argc, char *argv[])
 			timeout *= 1000;
 			break;
 		case 'x':
+			xflag = 1;
 			if ((proxy = strdup(optarg)) == NULL)
 				err(1, NULL);
 			break;
@@ -513,8 +500,48 @@ main(int argc, char *argv[])
 			hints.ai_flags |= AI_NUMERICHOST;
 	}
 
-	if (proxy != NULL) {
-		parse_proxy_chain(proxy, socksv, proxyhost, proxyport);
+	if (xflag) {
+		int i;
+		int proxycount;
+		char* proxypart;
+		char* phost;
+		char* pport;
+
+		for(i = 0; i < PROXY_CHAIN_MAX ; ++i) {
+			proxypart = strsep(&proxy, "+");
+			if (proxypart == NULL) {
+				proxyhost[i] = NULL;
+				proxyport[i] = NULL;
+				break;
+			}
+
+			phost = strsep(&proxypart, ":");
+			if (proxypart == NULL || *proxypart == 0)
+				pport = (socksv == -1) ? HTTP_PROXY_PORT : SOCKS_PORT;
+			else
+				pport = proxypart;
+
+			if (*phost == 0)
+				errx(1, "missing proxy host name");
+			proxyhost[i] = phost;
+			proxyport[i] = pport;
+		}
+
+		proxycount = i;
+		if (proxycount >= PROXY_CHAIN_MAX)
+			errx(1, "proxy chain too long");
+
+		proxy = (char*)proxyhost[0]; /* restore original pointer in case someone wants to free() it. */
+
+		/* Reverse proxy chain so that exit proxy is element 0 */
+		for (i = 0; i < (proxycount >> 1); ++i) {
+			const char* tmp = proxyhost[i];
+			proxyhost[i] = proxyhost[proxycount - i - 1];
+			proxyhost[proxycount - i - 1] = tmp;
+			tmp = proxyport[i];
+			proxyport[i] = proxyport[proxycount - i - 1];
+			proxyport[proxycount - i - 1] = tmp;
+		}
 
 		if (uflag)
 			errx(1, "no proxy support for UDP mode");
@@ -528,19 +555,21 @@ main(int argc, char *argv[])
 		if (family == AF_UNIX)
 			errx(1, "no proxy support for unix sockets");
 
+		/* XXX IPv6 transport to proxy would probably work */
+		if (family == AF_INET6)
+			errx(1, "no proxy support for IPv6");
+
 		if (sflag)
 			errx(1, "no proxy support for local source address");
+
+
+		memset(&proxyhints, 0, sizeof(struct addrinfo));
+		proxyhints.ai_family = family;
+		proxyhints.ai_socktype = SOCK_STREAM;
+		proxyhints.ai_protocol = IPPROTO_TCP;
+		if (nflag)
+			proxyhints.ai_flags |= AI_NUMERICHOST;
 	}
-
-	if (proxy2 != NULL)
-		parse_proxy_chain(proxy2, socksv2, proxyhost2, proxyport2);
-
-	memset(&proxyhints, 0, sizeof(struct addrinfo));
-	proxyhints.ai_family = family;
-	proxyhints.ai_socktype = SOCK_STREAM;
-	proxyhints.ai_protocol = IPPROTO_TCP;
-	if (nflag)
-		proxyhints.ai_flags |= AI_NUMERICHOST;
 
 	if (endpoint2 != NULL) {
 		if (uflag)
@@ -708,7 +737,7 @@ main(int argc, char *argv[])
                                     for (j = 0; j < num_destinations; ++j)
                                         close(listen_poll[j].fd);
                                 }
-				connect_stdin_stdout_to(connfd, i, endpoint2host, endpoint2port, hints, proxyhost2, proxyport2, proxyhints, socksv2, Pflag2, headers2);
+				connect_stdin_stdout_to(connfd, i, endpoint2host, endpoint2port, hints, proxyhost, proxyport, proxyhints, socksv, Pflag, headers);
 				readwrite(connfd);
 				shutdown_endpoint2(endpoint2host);
 				close(connfd);
@@ -743,7 +772,7 @@ main(int argc, char *argv[])
 			ret = 0;
 
 			if ((s = unix_connect(hostlist[i])) > 0 && !zflag) {
-				connect_stdin_stdout_to(s, i, endpoint2host, endpoint2port, hints, proxyhost2, proxyport2, proxyhints, socksv2, Pflag2, headers2);
+				connect_stdin_stdout_to(s, i, endpoint2host, endpoint2port, hints, proxyhost, proxyport, proxyhints, socksv, Pflag, headers);
 				readwrite(s);
 				shutdown_endpoint2(endpoint2host);
 				close(s);
@@ -810,7 +839,7 @@ main(int argc, char *argv[])
 				    sv ? sv->s_name : "*");
 			}
 			if (!zflag)
-				connect_stdin_stdout_to(s, i, endpoint2host, endpoint2port, hints, proxyhost2, proxyport2, proxyhints, socksv2, Pflag2, headers2);
+				connect_stdin_stdout_to(s, i, endpoint2host, endpoint2port, hints, proxyhost, proxyport, proxyhints, socksv, Pflag, headers);
 				readwrite(s);
 				shutdown_endpoint2(endpoint2host);
 		}
@@ -820,50 +849,6 @@ main(int argc, char *argv[])
 		close(s);
 
 	exit(ret);
-}
-
-static void
-parse_proxy_chain(char* proxy, int socksv, const char* proxyhost[], const char* proxyport[])
-{
-	int i;
-	int proxycount;
-	char* proxypart;
-	char* phost;
-	char* pport;
-
-	for(i = 0; i < PROXY_CHAIN_MAX ; ++i) {
-		proxypart = strsep(&proxy, "+");
-		if (proxypart == NULL) {
-			proxyhost[i] = NULL;
-			proxyport[i] = NULL;
-			break;
-		}
-
-		phost = strsep(&proxypart, ":");
-		if (proxypart == NULL || *proxypart == 0)
-			pport = (socksv == -1) ? HTTP_PROXY_PORT : SOCKS_PORT;
-		else
-			pport = proxypart;
-
-		if (*phost == 0)
-			errx(1, "missing proxy host name");
-		proxyhost[i] = phost;
-		proxyport[i] = pport;
-	}
-
-	proxycount = i;
-	if (proxycount >= PROXY_CHAIN_MAX)
-		errx(1, "proxy chain too long");
-
-	/* Reverse proxy chain so that exit proxy is element 0 */
-	for (i = 0; i < (proxycount >> 1); ++i) {
-		const char* tmp = proxyhost[i];
-		proxyhost[i] = proxyhost[proxycount - i - 1];
-		proxyhost[proxycount - i - 1] = tmp;
-		tmp = proxyport[i];
-		proxyport[i] = proxyport[proxycount - i - 1];
-		proxyport[proxycount - i - 1] = tmp;
-	}
 }
 
 /*

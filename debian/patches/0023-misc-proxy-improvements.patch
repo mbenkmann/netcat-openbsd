@@ -1,0 +1,472 @@
+--- a/nc.1
++++ b/nc.1
+@@ -100,17 +100,24 @@
+ .Ar destination
+ has been established, connect to
+ .Ar endpoint2
+-instead of using stdin+stdout as 2nd endpoint. If
+-.Fl x
+-is used to set a proxy, that same proxy will be used for
+-connecting to
++instead of using stdin+stdout as 2nd endpoint.
++.Fl 2
++is positional with respect to proxy-related options
++.Fl x, X, P
++and
++.Fl H.
++Proxy-related options preceding
++.Fl 2
++on the command line will be used for connecting to
+ .Ar endpoint2
+-as well.
++whereas options following
++.Fl 2
++on the command line will be used for the primary connection.
+ .Fl 2
+ may not be combined with the
+ .Fl u
+ option. For details on the possible
+-values for
++formats for
+ .Ar endpoint2
+ see below:
+ .It Fl 2 Ar host Ns : Ns Ar port
+@@ -601,6 +608,188 @@
+ Protocol mismatch.
+ 220 host.example.com IMS SMTP Receiver Version 0.84 Ready
+ .Ed
++.Sh CONNECTION BROKER
++A common challenge is connecting two machines that are both behind
++firewalls/proxies/NAT routers. As long as both machines can connect to
++a 3rd machine,
++.Nm
++makes such connections simple with no need for port forwardings or other
++reconfigurations on the firewalls/proxies/routers involved. You need the
++ability to run
++.Nm
++on all 3 machines, but root access is not required.
++.Pp
++Example: You want to create an
++.Xr ssh 1
++connection from client C to server S. Client C is part of LAN1 and can only
++connect to the Internet through a SOCKS proxy running on
++proxy.lan1:1080. Server S is part of LAN2 which is behind a NAT router,
++i.e. S can connect directly to the Internet but incoming connections to S
++from the Internet are not possible because the NAT router does not have the
++appropriate port forwardings configured.
++.Pp
++First you need a user account on a 3rd machine, let's say
++broker.example.com. This machine has to be reachable from C and S (via the
++proxy in the case of C). On this machine you run
++.Nm
++in connection broker mode:
++.Bd -literal -offset indent
++$ nc \-2 zip \-m 2 \-kl 9000 9001
++.Ed
++.Pp
++This will cause
++.Nm
++to wait for connections on ports 9000 and 9001. Whenever two connections
++have been established, one on each port,
++.Nm
++will copy data between the two connections.
++.Pp
++On machine C you initiate the
++.Xr ssh 1
++connection, using
++.Nm
++as the ProxyCommand:
++.Bd -literal -offset indent
++$ ssh -o ProxyCommand="nc -xproxy.lan1:1080 %h %p" -p 9000 broker.example.com
++.Ed
++.Pp
++This will connect to port 9000 of the broker. The broker will hold the
++connection until the peer connects to port 9001.
++.Pp
++On machine S you use
++.Nm
++to create a connection between the broker's port 9001 and the
++.Xr sshd 8
++daemon running on port 22:
++.Bd -literal -offset indent
++$ nc -2 localhost:22 broker.example.com 9001
++.Ed
++.Pp
++The above example creates a one-time connection only and you may need to issue
++the
++.Nm
++commands on C and S within a certain short time window to avoid either
++.Xr ssh 1
++or
++.Xr sshd 8
++timing out the connection. For a more sophisticated setup, see the following
++section.
++.Sh 2-WAY PROXY
++This is an extension of the CONNECTION BROKER method described in the previous
++section. While the connection broker started with the
++.Fl 2
++.Dq zip
++option connects any client on the first port with any peer on the second
++port, the
++.Fl 2
++.Dq match
++option expects clients connecting on either port to send connection requests
++conforming to one of the supported proxy protocols (HTTP CONNECT, SOCKSv4,
++SOCKSv4a, SOCKSv5) and
++.Nm
++will only create a connection between peers whose connection requests
++specify the same target.
++.Pp
++Example: We extend the example from the CONNECTION BROKER section. This time
++instead of a one-time
++.Xr ssh 1
++connection we want to establish a permanent port forwarding from C's port 2222
++to S's port 22. Additionally we want to establish a 2nd port forwarding from
++C's port 8080 to S's port 80.
++.Pp
++On broker.example.com we start
++.Nm
++in 2-way proxy mode:
++.Bd -literal -offset indent
++$ nc \-2 match \-m 16 \-kl 9000 9001
++.Ed
++.Pp
++This time we have used
++.Dq match
++instead of
++.Dq zip
++to select 2-way proxy mode. We have also increased the number of
++parallel connections to 16 so that we
++can support multiple
++.Xr ssh 1
++and HTTP connections at the same time.
++.Pp
++On C we establish the forwarding for port 2222 like this:
++.Bd -literal -offset indent
++$ nc \-xproxy.lan1:1080+broker.example.com:9000 \-2 s:22 \-m 8 \-kl 2222
++.Ed
++.Pp
++This causes
++.Nm
++to listen on port 2222 and to forward any connection to that port to
++.Dq s:22
++via the proxy chain
++.Dq proxy.lan1:1080+broker.example.com:9000 .
++.Dq s:22
++is an arbitrary name:number identifier with number in the range
++1-65535.
++.Pp
++On S we establish the connection between broker port 9001 and the
++.Xr sshd 8
++daemon's port 22 like this:
++.Bd -literal -offset indent
++$ nc \-2 localhost:22 \-xbroker.example.com:9001 \-k \-m 4  s 22
++.Ed
++.Pp
++The final two arguments
++.Dq s 22
++have to match the
++.Dq s:22
++identifier chosen on machine C (note the colon in one but not the other). Note
++that because of
++.Fl m
++4 being used without
++.Fl l
++,
++.Nm
++will initiate 4 connections to broker.example.com:9001 right away and will
++always maintain 4 connections. This allows for up to 4 simultaneous
++.Xr ssh 1
++connections from C to S.
++Each connection to localhost:22 will only be established when a peer
++has connected to broker port 9000
++with matching id (i.e.
++.Dq s:22
++).
++.Pp
++The C:8080 to S:80 forwarding is established similarly. On machine C:
++.Bd -literal -offset indent
++$ nc \-xproxy.lan1:1080+broker.example.com:9000 \-2 s:80 \-m 8 \-kl 8080
++.Ed
++.Pp
++and on machine S:
++.Bd -literal -offset indent
++$ nc \-2 localhost:80 \-xbroker.example.com:9001 \-k \-m 4  s 80
++.Ed
++.Pp
++Notice that no additional
++.Nm
++process is needed on the broker. The port 80
++forwarding uses the same broker ports as the port 22 forwarding. The broker
++uses the ids
++.Dq s:80
++and
++.Dq s:22
++respectively to match the correct peers.
++.Pp
++It is important that the sum of the
++.Fl m
++options for the two
++.Nm
++processes on S is not more than half the
++.Fl m
++option used on the broker, because these are permanent connections as
++opposed to the connections from C to the broker which are established on
++demand due to
++.Fl l
++being in the
++.Nm
++calls used on C.
+ .Sh EXAMPLES
+ Open a TCP connection to port 42 of host.example.com, using port 31337 as
+ the source port, with a timeout of 5 seconds:
+--- a/netcat.c
++++ b/netcat.c
+@@ -113,6 +113,7 @@
+ #define PROXY_CHAIN_MAX 32
+ #define SOCKS_PORT	"1080"
+ #define HTTP_PROXY_PORT	"3128"
++#define PROXY_PROTOCOL_DEFAULT 5
+ 
+ #define CONNECTION_SUCCESS 0
+ #define CONNECTION_FAILED 1
+@@ -137,6 +138,7 @@
+ int	mflag;					/* max. child processes to fork */
+ int	nflag;					/* Don't do name look up */
+ char   *Pflag;					/* Proxy username */
++char   *Pflag2;					/* Proxy username (-2 target) */
+ char   *pflag;					/* Localport flag */
+ int     qflag = 0;                              /* Quit after ... */
+ int	qtime = 0;				/* ... this many seconds */
+@@ -146,7 +148,6 @@
+ int	uflag;					/* UDP - Default to TCP */
+ int	dccpflag;				/* DCCP - Default to TCP */
+ int	vflag;					/* Verbosity */
+-int	xflag;					/* Socks proxy */
+ int	zflag;					/* Port Scan Flag */
+ int	Dflag;					/* sodebug */
+ int	Iflag;					/* TCP receive buffer size */
+@@ -192,6 +193,7 @@
+ 	struct addrinfo proxyhints, int socksv, const char *proxyuser, char *headers);
+ static void shutdown_endpoint2(const char *endpoint2host);
+ static void quit();
++static void parse_proxy_chain(char* proxy, int socksv, const char* proxyhost[], const char* proxyport[]);
+ 
+ int	child_count = 0;
+ static	int handle_mflag(void) {
+@@ -230,7 +232,7 @@
+ int
+ main(int argc, char *argv[])
+ {
+-	int ch, s, ret, socksv;
++	int ch, s, ret, socksv, socksv2;
+ 	char *cptr;
+ 	struct addrinfo hints;
+ 	struct servent *sv;
+@@ -240,18 +242,22 @@
+ 		struct sockaddr_un forunix;
+ 	} cliaddr;
+ 	char *proxy = NULL;
++	char *proxy2 = NULL;
+ 	const char *errstr;
+ 	const char *proxyhost[PROXY_CHAIN_MAX+1] = {NULL};
+ 	const char *proxyport[PROXY_CHAIN_MAX+1] = {NULL};
++	const char *proxyhost2[PROXY_CHAIN_MAX+1] = {NULL};
++	const char *proxyport2[PROXY_CHAIN_MAX+1] = {NULL};
+ 	char *endpoint2 = NULL;
+ 	char *endpoint2host = NULL, *endpoint2port = NULL;
+ 	char* headers = NULL;
++	char* headers2 = NULL;
+ 	struct addrinfo proxyhints;
+ 	char unix_dg_tmp_socket_buf[UNIX_DG_TMP_SOCKET_SIZE];
+ 
+ 	ret = 1;
+ 	s = 0;
+-	socksv = 5;
++	socksv = socksv2 = PROXY_PROTOCOL_DEFAULT;
+ 	sv = NULL;
+ 
+ 	while ((ch = getopt(argc, argv,
+@@ -260,6 +266,14 @@
+ 		case '2':
+ 			if ((endpoint2 = strdup(optarg)) == NULL)
+ 				err(1, NULL);
++			proxy2 = proxy;
++			headers2 = headers;
++			socksv2 = socksv;
++			Pflag2 = Pflag;
++			proxy = NULL;
++			headers = NULL;
++			socksv = PROXY_PROTOCOL_DEFAULT;
++			Pflag = NULL;
+ 			break;
+ 		case '4':
+ 			family = AF_INET;
+@@ -388,7 +402,6 @@
+ 			timeout *= 1000;
+ 			break;
+ 		case 'x':
+-			xflag = 1;
+ 			if ((proxy = strdup(optarg)) == NULL)
+ 				err(1, NULL);
+ 			break;
+@@ -500,48 +513,8 @@
+ 			hints.ai_flags |= AI_NUMERICHOST;
+ 	}
+ 
+-	if (xflag) {
+-		int i;
+-		int proxycount;
+-		char* proxypart;
+-		char* phost;
+-		char* pport;
+-
+-		for(i = 0; i < PROXY_CHAIN_MAX ; ++i) {
+-			proxypart = strsep(&proxy, "+");
+-			if (proxypart == NULL) {
+-				proxyhost[i] = NULL;
+-				proxyport[i] = NULL;
+-				break;
+-			}
+-
+-			phost = strsep(&proxypart, ":");
+-			if (proxypart == NULL || *proxypart == 0)
+-				pport = (socksv == -1) ? HTTP_PROXY_PORT : SOCKS_PORT;
+-			else
+-				pport = proxypart;
+-
+-			if (*phost == 0)
+-				errx(1, "missing proxy host name");
+-			proxyhost[i] = phost;
+-			proxyport[i] = pport;
+-		}
+-
+-		proxycount = i;
+-		if (proxycount >= PROXY_CHAIN_MAX)
+-			errx(1, "proxy chain too long");
+-
+-		proxy = (char*)proxyhost[0]; /* restore original pointer in case someone wants to free() it. */
+-
+-		/* Reverse proxy chain so that exit proxy is element 0 */
+-		for (i = 0; i < (proxycount >> 1); ++i) {
+-			const char* tmp = proxyhost[i];
+-			proxyhost[i] = proxyhost[proxycount - i - 1];
+-			proxyhost[proxycount - i - 1] = tmp;
+-			tmp = proxyport[i];
+-			proxyport[i] = proxyport[proxycount - i - 1];
+-			proxyport[proxycount - i - 1] = tmp;
+-		}
++	if (proxy != NULL) {
++		parse_proxy_chain(proxy, socksv, proxyhost, proxyport);
+ 
+ 		if (uflag)
+ 			errx(1, "no proxy support for UDP mode");
+@@ -555,21 +528,19 @@
+ 		if (family == AF_UNIX)
+ 			errx(1, "no proxy support for unix sockets");
+ 
+-		/* XXX IPv6 transport to proxy would probably work */
+-		if (family == AF_INET6)
+-			errx(1, "no proxy support for IPv6");
+-
+ 		if (sflag)
+ 			errx(1, "no proxy support for local source address");
++	}
+ 
++	if (proxy2 != NULL)
++		parse_proxy_chain(proxy2, socksv2, proxyhost2, proxyport2);
+ 
+-		memset(&proxyhints, 0, sizeof(struct addrinfo));
+-		proxyhints.ai_family = family;
+-		proxyhints.ai_socktype = SOCK_STREAM;
+-		proxyhints.ai_protocol = IPPROTO_TCP;
+-		if (nflag)
+-			proxyhints.ai_flags |= AI_NUMERICHOST;
+-	}
++	memset(&proxyhints, 0, sizeof(struct addrinfo));
++	proxyhints.ai_family = family;
++	proxyhints.ai_socktype = SOCK_STREAM;
++	proxyhints.ai_protocol = IPPROTO_TCP;
++	if (nflag)
++		proxyhints.ai_flags |= AI_NUMERICHOST;
+ 
+ 	if (endpoint2 != NULL) {
+ 		if (uflag)
+@@ -737,7 +708,7 @@
+                                     for (j = 0; j < num_destinations; ++j)
+                                         close(listen_poll[j].fd);
+                                 }
+-				connect_stdin_stdout_to(connfd, i, endpoint2host, endpoint2port, hints, proxyhost, proxyport, proxyhints, socksv, Pflag, headers);
++				connect_stdin_stdout_to(connfd, i, endpoint2host, endpoint2port, hints, proxyhost2, proxyport2, proxyhints, socksv2, Pflag2, headers2);
+ 				readwrite(connfd);
+ 				shutdown_endpoint2(endpoint2host);
+ 				close(connfd);
+@@ -772,7 +743,7 @@
+ 			ret = 0;
+ 
+ 			if ((s = unix_connect(hostlist[i])) > 0 && !zflag) {
+-				connect_stdin_stdout_to(s, i, endpoint2host, endpoint2port, hints, proxyhost, proxyport, proxyhints, socksv, Pflag, headers);
++				connect_stdin_stdout_to(s, i, endpoint2host, endpoint2port, hints, proxyhost2, proxyport2, proxyhints, socksv2, Pflag2, headers2);
+ 				readwrite(s);
+ 				shutdown_endpoint2(endpoint2host);
+ 				close(s);
+@@ -839,7 +810,7 @@
+ 				    sv ? sv->s_name : "*");
+ 			}
+ 			if (!zflag)
+-				connect_stdin_stdout_to(s, i, endpoint2host, endpoint2port, hints, proxyhost, proxyport, proxyhints, socksv, Pflag, headers);
++				connect_stdin_stdout_to(s, i, endpoint2host, endpoint2port, hints, proxyhost2, proxyport2, proxyhints, socksv2, Pflag2, headers2);
+ 				readwrite(s);
+ 				shutdown_endpoint2(endpoint2host);
+ 		}
+@@ -851,6 +822,50 @@
+ 	exit(ret);
+ }
+ 
++static void
++parse_proxy_chain(char* proxy, int socksv, const char* proxyhost[], const char* proxyport[])
++{
++	int i;
++	int proxycount;
++	char* proxypart;
++	char* phost;
++	char* pport;
++
++	for(i = 0; i < PROXY_CHAIN_MAX ; ++i) {
++		proxypart = strsep(&proxy, "+");
++		if (proxypart == NULL) {
++			proxyhost[i] = NULL;
++			proxyport[i] = NULL;
++			break;
++		}
++
++		phost = strsep(&proxypart, ":");
++		if (proxypart == NULL || *proxypart == 0)
++			pport = (socksv == -1) ? HTTP_PROXY_PORT : SOCKS_PORT;
++		else
++			pport = proxypart;
++
++		if (*phost == 0)
++			errx(1, "missing proxy host name");
++		proxyhost[i] = phost;
++		proxyport[i] = pport;
++	}
++
++	proxycount = i;
++	if (proxycount >= PROXY_CHAIN_MAX)
++		errx(1, "proxy chain too long");
++
++	/* Reverse proxy chain so that exit proxy is element 0 */
++	for (i = 0; i < (proxycount >> 1); ++i) {
++		const char* tmp = proxyhost[i];
++		proxyhost[i] = proxyhost[proxycount - i - 1];
++		proxyhost[proxycount - i - 1] = tmp;
++		tmp = proxyport[i];
++		proxyport[i] = proxyport[proxycount - i - 1];
++		proxyport[proxycount - i - 1] = tmp;
++	}
++}
++
+ /*
+  * unix_bind()
+  * Returns a unix socket bound to the given path
