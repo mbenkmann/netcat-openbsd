@@ -1416,12 +1416,14 @@ static void connect_stdin_stdout_to(int request_sock, int destination_idx, const
 
 	close(s);
 
-	if (pipe_fd < 0)
-		exit(0); /* closes the write end of the pipe, so other side's read() returns */
-	else
-		read(pipe_fd, buf, 1); /* wait till other process exits */
+	if (is_match || is_zip) {
+		if (pipe_fd < 0)
+			exit(0); /* closes the write end of the pipe, so other side's read() returns */
+		else
+			read(pipe_fd, buf, 1); /* wait till other process exits */
 
-	close(pipe_fd);
+		close(pipe_fd);
+	}
 }
 
 static void shutdown_endpoint2(const char *endpoint2host) {
